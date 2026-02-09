@@ -1,5 +1,4 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -31,93 +30,38 @@ export function OverSummary({ bowler, overNumber, balls, totalRuns, wickets }: O
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="subtitle" style={styles.title}>
+    <ThemedView className="p-4 m-4 rounded-lg shadow-md shadow-black/10 elevation-3">
+      <ThemedView className="mb-3">
+        <ThemedText className="text-lg font-semibold mb-1">
           Over {overNumber}
         </ThemedText>
-        <ThemedText style={styles.bowler}>Bowled by {bowler}</ThemedText>
+        <ThemedText className="text-sm text-gray-600">Bowled by {bowler}</ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.ballsContainer}>
+      <ThemedView className="flex-row flex-wrap mb-3">
         {balls.map((ball, index) => (
           <ThemedView
             key={index}
-            style={[
-              styles.ball,
-              ball.isWicket && styles.wicketBall,
-              ball.runs === 4 && styles.fourBall,
-              ball.runs === 6 && styles.sixBall,
-            ]}
+            className={`w-10 h-10 rounded-full justify-center items-center m-1 ${
+              ball.isWicket
+                ? 'bg-red-500'
+                : ball.runs === 4
+                ? 'bg-yellow-500'
+                : ball.runs === 6
+                ? 'bg-green-500'
+                : 'bg-gray-200'
+            }`}
           >
-            <ThemedText style={styles.ballText}>{getBallDisplay(ball)}</ThemedText>
+            <ThemedText className="text-sm font-bold text-white">{getBallDisplay(ball)}</ThemedText>
           </ThemedView>
         ))}
       </ThemedView>
 
-      <ThemedView style={styles.summary}>
-        <ThemedText style={styles.summaryText}>
+      <ThemedView className="items-center">
+        <ThemedText className="text-base font-semibold">
           This Over: {totalRuns} runs, {wickets} wicket{wickets !== 1 ? 's' : ''}
         </ThemedText>
       </ThemedView>
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  header: {
-    marginBottom: 12,
-  },
-  title: {
-    marginBottom: 4,
-  },
-  bowler: {
-    fontSize: 14,
-    color: '#666',
-  },
-  ballsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  ball: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e9ecef',
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 4,
-  },
-  wicketBall: {
-    backgroundColor: '#dc3545',
-  },
-  fourBall: {
-    backgroundColor: '#ffc107',
-  },
-  sixBall: {
-    backgroundColor: '#28a745',
-  },
-  ballText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  summary: {
-    alignItems: 'center',
-  },
-  summaryText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom utility classes for React Native */
+@layer utilities {
+  .elevation-1 {
+    /* For Android elevation */
+    elevation: 1;
+  }
+  .elevation-2 {
+    elevation: 2;
+  }
+  .elevation-3 {
+    elevation: 3;
+  }
+  .elevation-4 {
+    elevation: 4;
+  }
+  .elevation-5 {
+    elevation: 5;
+  }
+}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -36,33 +35,35 @@ export function WicketCard({ wicket }: WicketCardProps) {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText style={styles.wicketIcon}>❌</ThemedText>
-        <ThemedText type="subtitle" style={styles.title}>
+    <ThemedView className="p-4 m-4 rounded-lg bg-red-50 border border-red-200">
+      <ThemedView className="flex-row items-center mb-3">
+        <ThemedText className="text-2xl mr-2">❌</ThemedText>
+        <ThemedText className="text-lg font-semibold text-red-800 flex-1">
           WICKET!
         </ThemedText>
-        <ThemedText style={styles.overBall}>
+        <ThemedText className="text-sm text-red-800 font-bold">
           {wicket.over}.{wicket.ball}
         </ThemedText>
       </ThemedView>
 
-      <ThemedText style={styles.dismissal}>{getDismissalDescription()}</ThemedText>
+      <ThemedText className="text-base font-semibold text-red-800 mb-3 leading-6">
+        {getDismissalDescription()}
+      </ThemedText>
 
-      <ThemedView style={styles.stats}>
-        <ThemedView style={styles.statRow}>
-          <ThemedText style={styles.statLabel}>Runs:</ThemedText>
-          <ThemedText style={styles.statValue}>{wicket.score}</ThemedText>
+      <ThemedView className="bg-white p-3 rounded">
+        <ThemedView className="flex-row justify-between mb-1">
+          <ThemedText className="text-sm text-gray-600">Runs:</ThemedText>
+          <ThemedText className="text-sm font-semibold">{wicket.score}</ThemedText>
         </ThemedView>
 
-        <ThemedView style={styles.statRow}>
-          <ThemedText style={styles.statLabel}>Balls:</ThemedText>
-          <ThemedText style={styles.statValue}>{wicket.ballsFaced}</ThemedText>
+        <ThemedView className="flex-row justify-between mb-1">
+          <ThemedText className="text-sm text-gray-600">Balls:</ThemedText>
+          <ThemedText className="text-sm font-semibold">{wicket.ballsFaced}</ThemedText>
         </ThemedView>
 
-        <ThemedView style={styles.statRow}>
-          <ThemedText style={styles.statLabel}>Strike Rate:</ThemedText>
-          <ThemedText style={styles.statValue}>
+        <ThemedView className="flex-row justify-between">
+          <ThemedText className="text-sm text-gray-600">Strike Rate:</ThemedText>
+          <ThemedText className="text-sm font-semibold">
             {wicket.ballsFaced > 0 ? ((wicket.score / wicket.ballsFaced) * 100).toFixed(2) : '0.00'}
           </ThemedText>
         </ThemedView>
@@ -70,57 +71,3 @@ export function WicketCard({ wicket }: WicketCardProps) {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-    backgroundColor: '#f8d7da',
-    borderWidth: 1,
-    borderColor: '#f5c6cb',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  wicketIcon: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  title: {
-    color: '#721c24',
-    flex: 1,
-  },
-  overBall: {
-    fontSize: 14,
-    color: '#721c24',
-    fontWeight: 'bold',
-  },
-  dismissal: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#721c24',
-    marginBottom: 12,
-    lineHeight: 22,
-  },
-  stats: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 6,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

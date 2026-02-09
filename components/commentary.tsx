@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -21,43 +21,43 @@ interface CommentaryProps {
 
 export function Commentary({ commentary }: CommentaryProps) {
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="subtitle" style={styles.title}>
+    <ThemedView className="flex-1 p-4">
+      <ThemedText className="text-lg font-semibold mb-4">
         Commentary
       </ThemedText>
 
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView className="flex-1">
         {commentary.map((item) => (
-          <ThemedView key={item.id} style={styles.commentaryItem}>
-            <ThemedView style={styles.header}>
-              <ThemedText style={styles.overBall}>
+          <ThemedView key={item.id} className="p-3 mb-2 rounded-lg border border-gray-200">
+            <ThemedView className="flex-row justify-between mb-2">
+              <ThemedText className="text-sm font-bold text-blue-500">
                 {item.over}.{item.ball}
               </ThemedText>
-              <ThemedText style={styles.timestamp}>{item.timestamp}</ThemedText>
+              <ThemedText className="text-xs text-gray-500">{item.timestamp}</ThemedText>
             </ThemedView>
 
-            <ThemedView style={styles.players}>
-              <ThemedText style={styles.batsman}>{item.batsman}</ThemedText>
-              <ThemedText style={styles.vs}>vs</ThemedText>
-              <ThemedText style={styles.bowler}>{item.bowler}</ThemedText>
+            <ThemedView className="flex-row items-center mb-2">
+              <ThemedText className="text-sm font-semibold">{item.batsman}</ThemedText>
+              <ThemedText className="text-xs text-gray-500 mx-2">vs</ThemedText>
+              <ThemedText className="text-sm font-semibold">{item.bowler}</ThemedText>
             </ThemedView>
 
             <ThemedText
-              style={[
-                styles.description,
-                item.isWicket && styles.wicketText,
-                item.runs > 0 && styles.runsText,
-              ]}
+              className={`text-sm leading-5 mb-2 ${
+                item.isWicket ? 'text-red-500 font-bold' : item.runs > 0 ? 'text-green-500' : ''
+              }`}
             >
               {item.description}
             </ThemedText>
 
-            <ThemedView style={styles.footer}>
+            <ThemedView className="flex-row justify-between items-center">
               {item.runs > 0 && (
-                <ThemedText style={styles.runs}>{item.runs} run{item.runs !== 1 ? 's' : ''}</ThemedText>
+                <ThemedText className="text-xs text-green-500 font-bold">
+                  {item.runs} run{item.runs !== 1 ? 's' : ''}
+                </ThemedText>
               )}
               {item.isWicket && (
-                <ThemedText style={styles.wicket}>WICKET!</ThemedText>
+                <ThemedText className="text-xs text-red-500 font-bold">WICKET!</ThemedText>
               )}
             </ThemedView>
           </ThemedView>
@@ -66,82 +66,3 @@ export function Commentary({ commentary }: CommentaryProps) {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  title: {
-    marginBottom: 16,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  commentaryItem: {
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  overBall: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#007bff',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#6c757d',
-  },
-  players: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  batsman: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  vs: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginHorizontal: 8,
-  },
-  bowler: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  wicketText: {
-    color: '#dc3545',
-    fontWeight: 'bold',
-  },
-  runsText: {
-    color: '#28a745',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  runs: {
-    fontSize: 12,
-    color: '#28a745',
-    fontWeight: 'bold',
-  },
-  wicket: {
-    fontSize: 12,
-    color: '#dc3545',
-    fontWeight: 'bold',
-  },
-});

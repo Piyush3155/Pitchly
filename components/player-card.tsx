@@ -1,7 +1,7 @@
-import React from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+import React from "react";
+import { TouchableOpacity } from "react-native";
+import { ThemedText } from "./themed-text";
+import { ThemedView } from "./themed-view";
 
 interface PlayerCardProps {
   player: {
@@ -23,55 +23,79 @@ interface PlayerCardProps {
 
 export function PlayerCard({ player, onPress }: PlayerCardProps) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
-      <ThemedView style={styles.card}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="subtitle" style={styles.playerName}>
+    <TouchableOpacity onPress={onPress} className="my-2 mx-4">
+      <ThemedView className="p-4 rounded-lg shadow-md shadow-black/10 elevation-3">
+        <ThemedView className="mb-2">
+          <ThemedText type="subtitle" className="mb-1">
             {player.name}
           </ThemedText>
-          <ThemedText style={styles.role}>{player.role}</ThemedText>
+          <ThemedText className="text-sm text-gray-500 capitalize">
+            {player.role}
+          </ThemedText>
         </ThemedView>
 
-        <ThemedText style={styles.team}>{player.team}</ThemedText>
+        <ThemedText className="text-base font-semibold mb-3">
+          {player.team}
+        </ThemedText>
 
-        <ThemedView style={styles.statsContainer}>
-          <ThemedView style={styles.statRow}>
-            <ThemedText style={styles.statLabel}>Matches:</ThemedText>
-            <ThemedText style={styles.statValue}>{player.stats.matches}</ThemedText>
+        <ThemedView>
+          <ThemedView className="flex-row justify-between mb-1">
+            <ThemedText className="text-sm text-gray-500">Matches:</ThemedText>
+            <ThemedText className="text-sm font-semibold">
+              {player.stats.matches}
+            </ThemedText>
           </ThemedView>
 
           {player.stats.runs !== undefined && (
-            <ThemedView style={styles.statRow}>
-              <ThemedText style={styles.statLabel}>Runs:</ThemedText>
-              <ThemedText style={styles.statValue}>{player.stats.runs}</ThemedText>
+            <ThemedView className="flex-row justify-between mb-1">
+              <ThemedText className="text-sm text-gray-500">Runs:</ThemedText>
+              <ThemedText className="text-sm font-semibold">
+                {player.stats.runs}
+              </ThemedText>
             </ThemedView>
           )}
 
           {player.stats.wickets !== undefined && (
-            <ThemedView style={styles.statRow}>
-              <ThemedText style={styles.statLabel}>Wickets:</ThemedText>
-              <ThemedText style={styles.statValue}>{player.stats.wickets}</ThemedText>
+            <ThemedView className="flex-row justify-between mb-1">
+              <ThemedText className="text-sm text-gray-500">
+                Wickets:
+              </ThemedText>
+              <ThemedText className="text-sm font-semibold">
+                {player.stats.wickets}
+              </ThemedText>
             </ThemedView>
           )}
 
           {player.stats.average !== undefined && (
-            <ThemedView style={styles.statRow}>
-              <ThemedText style={styles.statLabel}>Average:</ThemedText>
-              <ThemedText style={styles.statValue}>{player.stats.average}</ThemedText>
+            <ThemedView className="flex-row justify-between mb-1">
+              <ThemedText className="text-sm text-gray-500">
+                Average:
+              </ThemedText>
+              <ThemedText className="text-sm font-semibold">
+                {player.stats.average}
+              </ThemedText>
             </ThemedView>
           )}
 
           {player.stats.strikeRate !== undefined && (
-            <ThemedView style={styles.statRow}>
-              <ThemedText style={styles.statLabel}>Strike Rate:</ThemedText>
-              <ThemedText style={styles.statValue}>{player.stats.strikeRate}</ThemedText>
+            <ThemedView className="flex-row justify-between mb-1">
+              <ThemedText className="text-sm text-gray-500">
+                Strike Rate:
+              </ThemedText>
+              <ThemedText className="text-sm font-semibold">
+                {player.stats.strikeRate}
+              </ThemedText>
             </ThemedView>
           )}
 
           {player.stats.economy !== undefined && (
-            <ThemedView style={styles.statRow}>
-              <ThemedText style={styles.statLabel}>Economy:</ThemedText>
-              <ThemedText style={styles.statValue}>{player.stats.economy}</ThemedText>
+            <ThemedView className="flex-row justify-between mb-1">
+              <ThemedText className="text-sm text-gray-500">
+                Economy:
+              </ThemedText>
+              <ThemedText className="text-sm font-semibold">
+                {player.stats.economy}
+              </ThemedText>
             </ThemedView>
           )}
         </ThemedView>
@@ -79,51 +103,3 @@ export function PlayerCard({ player, onPress }: PlayerCardProps) {
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-    marginHorizontal: 16,
-  },
-  card: {
-    padding: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  header: {
-    marginBottom: 8,
-  },
-  playerName: {
-    marginBottom: 4,
-  },
-  role: {
-    fontSize: 14,
-    color: '#666',
-    textTransform: 'capitalize',
-  },
-  team: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  statsContainer: {
-    // Container for stats
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

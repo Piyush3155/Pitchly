@@ -1,7 +1,7 @@
-import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+import React from "react";
+import { ScrollView } from "react-native";
+import { ThemedText } from "./themed-text";
+import { ThemedView } from "./themed-view";
 
 interface Batsman {
   name: string;
@@ -43,123 +43,97 @@ export function Scorecard({
   totalOvers,
 }: ScorecardProps) {
   return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.section}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
+    <ScrollView className="flex-1 p-4">
+      <ThemedView className="mb-6">
+        <ThemedText type="subtitle" className="mb-3">
           {battingTeam} Batting
         </ThemedText>
 
-        <ThemedView style={styles.tableHeader}>
-          <ThemedText style={[styles.cell, styles.batsmanCell]}>Batsman</ThemedText>
-          <ThemedText style={styles.cell}>R</ThemedText>
-          <ThemedText style={styles.cell}>B</ThemedText>
-          <ThemedText style={styles.cell}>4s</ThemedText>
-          <ThemedText style={styles.cell}>6s</ThemedText>
-          <ThemedText style={styles.cell}>SR</ThemedText>
+        <ThemedView className="flex-row bg-gray-100 py-2 px-1 border-b border-gray-300">
+          <ThemedText className="flex-2 text-left text-sm">Batsman</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">R</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">B</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">4s</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">6s</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">SR</ThemedText>
         </ThemedView>
 
         {batsmen.map((batsman, index) => (
-          <ThemedView key={index} style={styles.tableRow}>
-            <ThemedText style={[styles.cell, styles.batsmanCell, batsman.isOut && styles.out]}>
+          <ThemedView
+            key={index}
+            className="flex-row py-2 px-1 border-b border-gray-100"
+          >
+            <ThemedText
+              className={`flex-2 text-left text-sm ${batsman.isOut ? "line-through text-gray-500" : ""}`}
+            >
               {batsman.name}
               {batsman.dismissal && ` (${batsman.dismissal})`}
             </ThemedText>
-            <ThemedText style={styles.cell}>{batsman.runs}</ThemedText>
-            <ThemedText style={styles.cell}>{batsman.balls}</ThemedText>
-            <ThemedText style={styles.cell}>{batsman.fours}</ThemedText>
-            <ThemedText style={styles.cell}>{batsman.sixes}</ThemedText>
-            <ThemedText style={styles.cell}>{batsman.strikeRate}</ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {batsman.runs}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {batsman.balls}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {batsman.fours}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {batsman.sixes}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {batsman.strikeRate}
+            </ThemedText>
           </ThemedView>
         ))}
 
-        <ThemedView style={styles.totalRow}>
-          <ThemedText style={[styles.cell, styles.batsmanCell, styles.totalText]}>
+        <ThemedView className="flex-row py-3 px-1 bg-gray-200 border-t-2 border-gray-300">
+          <ThemedText className="flex-2 text-left text-sm font-bold">
             Total: {totalRuns}/{totalWickets} ({totalOvers} overs)
           </ThemedText>
         </ThemedView>
       </ThemedView>
 
-      <ThemedView style={styles.section}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
+      <ThemedView className="mb-6">
+        <ThemedText type="subtitle" className="mb-3">
           {bowlingTeam} Bowling
         </ThemedText>
 
-        <ThemedView style={styles.tableHeader}>
-          <ThemedText style={[styles.cell, styles.bowlerCell]}>Bowler</ThemedText>
-          <ThemedText style={styles.cell}>O</ThemedText>
-          <ThemedText style={styles.cell}>M</ThemedText>
-          <ThemedText style={styles.cell}>R</ThemedText>
-          <ThemedText style={styles.cell}>W</ThemedText>
-          <ThemedText style={styles.cell}>Econ</ThemedText>
+        <ThemedView className="flex-row bg-gray-100 py-2 px-1 border-b border-gray-300">
+          <ThemedText className="flex-2 text-left text-sm">Bowler</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">O</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">M</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">R</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">W</ThemedText>
+          <ThemedText className="flex-1 text-center text-sm">Econ</ThemedText>
         </ThemedView>
 
         {bowlers.map((bowler, index) => (
-          <ThemedView key={index} style={styles.tableRow}>
-            <ThemedText style={[styles.cell, styles.bowlerCell]}>{bowler.name}</ThemedText>
-            <ThemedText style={styles.cell}>{bowler.overs}</ThemedText>
-            <ThemedText style={styles.cell}>{bowler.maidens}</ThemedText>
-            <ThemedText style={styles.cell}>{bowler.runs}</ThemedText>
-            <ThemedText style={styles.cell}>{bowler.wickets}</ThemedText>
-            <ThemedText style={styles.cell}>{bowler.economy}</ThemedText>
+          <ThemedView
+            key={index}
+            className="flex-row py-2 px-1 border-b border-gray-100"
+          >
+            <ThemedText className="flex-2 text-left text-sm">
+              {bowler.name}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {bowler.overs}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {bowler.maidens}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {bowler.runs}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {bowler.wickets}
+            </ThemedText>
+            <ThemedText className="flex-1 text-center text-sm">
+              {bowler.economy}
+            </ThemedText>
           </ThemedView>
         ))}
       </ThemedView>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f8f9fa',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    backgroundColor: '#e9ecef',
-    borderTopWidth: 2,
-    borderTopColor: '#dee2e6',
-  },
-  cell: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  batsmanCell: {
-    flex: 2,
-    textAlign: 'left',
-  },
-  bowlerCell: {
-    flex: 2,
-    textAlign: 'left',
-  },
-  out: {
-    textDecorationLine: 'line-through',
-    color: '#6c757d',
-  },
-  totalText: {
-    fontWeight: 'bold',
-  },
-});
