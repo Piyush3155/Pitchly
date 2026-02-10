@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -18,10 +19,13 @@ import {
     fetchMatches,
     getCountryFlag,
     getMatchTypeBadgeColor,
+    groupMatchesBySeries,
     initializeCountries,
+    isMatchCompleted,
     isMatchLive,
     isMatchUpcoming,
     Match,
+    MatchGroup,
 } from "@/services/cricapi";
 
 const TABS = ["Live", "Upcoming", "Recent"];
@@ -30,6 +34,7 @@ export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -52,30 +57,34 @@ export default function MatchesScreen() {
           data = current.filter((m) => isMatchLive(m.status));
           break;
         case 1: // Upcoming
-          data = allMatches
-            .filter((m) => isMatchUpcoming(m.status))
-            .filter(
-              (m) =>
-                !current.find((c) => c.id === m.id && isMatchLive(c.status)),
-            );
-          break;
-        case 2: // Recent
-          // Filter for completed matches (not live and not upcoming)
-          // We can check if status indicates a result
-          data = current.filter(
-            (m) =>
-              !isMatchLive(m.status) &&
-              !isMatchUpcoming(m.status) &&
-              (m.status.includes("won") ||
-                m.status.includes("lost") ||
-                m.status.includes("draw") ||
-                m.status.includes("tied")),
+          // Check both endpoints for upcoming matches
+          const upcomingFromAll = allMatches.filter((m) =>
+            isMatchUpcoming(m.status),
           );
+          const upcomingFromCurrent = current.filter((m) =>
+            isMatchUpcoming(m.status),
+          );
+          // Merge and deduplicate by id
+          const upcomingMap = new Map<string, Match>();
+          [...upcomingFromAll, ...upcomingFromCurrent].forEach((m) =>
+            upcomingMap.set(m.id, m),
+          );
+          data = Array.from(upcomingMap.values());
+          break;
+        case 2: // Recent / Completed
+          // First try: completed matches from currentMatches (more detailed scores)
+          data = current.filter((m) => isMatchCompleted(m.status));
           if (data.length === 0) {
-            // Fallback: use allMatches that are not upcoming
-            data = allMatches.filter(
-              (m) => !isMatchUpcoming(m.status) && !isMatchLive(m.status),
-            );
+            // Fallback: completed matches from allMatches
+            data = allMatches.filter((m) => isMatchCompleted(m.status));
+          }
+          if (data.length === 0) {
+            // Last fallback: anything not live and not upcoming
+            data = [...current, ...allMatches]
+              .filter(
+                (m) => !isMatchLive(m.status) && !isMatchUpcoming(m.status),
+              )
+              .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
           }
           break;
       }
@@ -184,167 +193,203 @@ export default function MatchesScreen() {
                 </ThemedText>
               </View>
             ) : (
-              matches.map((match) => {
-                const isLive = isMatchLive(match.status);
-                const team1Name = match.teams[0] || "Team 1";
-                const team2Name = match.teams[1] || "Team 2";
-
-                const score1 =
-                  match.score?.find((s) => s.inning.includes(team1Name)) ||
-                  match.score?.[0];
-                const score2 =
-                  match.score?.find((s) => s.inning.includes(team2Name)) ||
-                  match.score?.[1];
-
-                const formatScoreStr = (s?: {
-                  r: number;
-                  w: number;
-                  o: number;
-                }) => (s ? `${s.r}/${s.w} (${s.o} ov)` : null);
-
-                return (
-                  <TouchableOpacity
-                    key={match.id}
-                    className={`mb-3 rounded-2xl overflow-hidden ${
+              groupMatchesBySeries(matches).map((group: MatchGroup) => (
+                <View key={group.seriesName} className="mb-5">
+                  {/* Series Header */}
+                  <View
+                    className={`flex-row items-center px-3 py-2.5 mb-2 rounded-xl ${
                       isDark ? "bg-gray-800" : "bg-white"
-                    } shadow-md shadow-black/8 elevation-3`}
+                    } shadow-sm shadow-black/5 elevation-1`}
                   >
-                    {/* Match Header */}
+                    <ThemedText className="text-base mr-2">🏆</ThemedText>
+                    <ThemedText
+                      className="text-sm font-bold flex-1"
+                      numberOfLines={2}
+                    >
+                      {group.seriesName}
+                    </ThemedText>
                     <View
-                      className={`px-4 py-2 flex-row justify-between items-center ${
-                        isDark ? "bg-gray-700/50" : "bg-gray-50"
+                      className={`px-2 py-0.5 rounded-full ${
+                        isDark ? "bg-gray-700" : "bg-gray-100"
                       }`}
                     >
-                      <View className="flex-row items-center flex-1">
-                        <View
-                          style={{
-                            backgroundColor: getMatchTypeBadgeColor(
-                              match.matchType,
-                            ),
-                          }}
-                          className="px-2 py-0.5 rounded mr-2"
-                        >
-                          <ThemedText className="text-xs font-bold text-white uppercase">
-                            {match.matchType}
-                          </ThemedText>
-                        </View>
-                        <ThemedText
-                          className={`text-xs font-bold uppercase ${isLive ? "text-red-500" : "text-gray-500"}`}
-                        >
-                          {isLive
-                            ? "● LIVE"
-                            : activeTab === 1
-                              ? "UPCOMING"
-                              : "FINISHED"}
-                        </ThemedText>
-                      </View>
-                      <ThemedText
-                        className="text-xs opacity-50 pl-2"
-                        numberOfLines={1}
-                      >
-                        {match.venue?.split(",")[0]}
+                      <ThemedText className="text-xs opacity-60">
+                        {group.matches.length} match
+                        {group.matches.length !== 1 ? "es" : ""}
                       </ThemedText>
                     </View>
+                  </View>
 
-                    {/* Teams & Scores */}
-                    <View className="p-4">
-                      {/* Team 1 */}
-                      <View className="flex-row justify-between items-center mb-2.5">
-                        <View className="flex-row items-center flex-1">
-                          <View className="w-8 h-8 mr-3 items-center justify-center">
-                            {getCountryFlag(team1Name) ? (
-                              <Image
-                                source={{
-                                  uri: getCountryFlag(team1Name) || "",
-                                }}
-                                className="w-8 h-6 rounded-sm"
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <View
-                                className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                              >
-                                <ThemedText className="font-bold">
-                                  {team1Name.charAt(0)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-                          <ThemedText
-                            className="font-semibold text-base flex-1"
-                            numberOfLines={1}
-                          >
-                            {team1Name}
-                          </ThemedText>
-                        </View>
-                        {score1 && (
-                          <View className="items-end">
-                            <ThemedText className="font-bold text-base">
-                              {formatScoreStr(score1)}
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
+                  {/* Matches in this series */}
+                  {group.matches.map((match) => {
+                    const isLive = isMatchLive(match.status);
+                    const team1Name = match.teams[0] || "Team 1";
+                    const team2Name = match.teams[1] || "Team 2";
 
-                      {/* Team 2 */}
-                      <View className="flex-row justify-between items-center">
-                        <View className="flex-row items-center flex-1">
-                          <View className="w-8 h-8 mr-3 items-center justify-center">
-                            {getCountryFlag(team2Name) ? (
-                              <Image
-                                source={{
-                                  uri: getCountryFlag(team2Name) || "",
-                                }}
-                                className="w-8 h-6 rounded-sm"
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <View
-                                className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                              >
-                                <ThemedText className="font-bold">
-                                  {team2Name.charAt(0)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-                          <ThemedText
-                            className="font-semibold text-base flex-1"
-                            numberOfLines={1}
-                          >
-                            {team2Name}
-                          </ThemedText>
-                        </View>
-                        {score2 && (
-                          <View className="items-end">
-                            <ThemedText className="font-bold text-base">
-                              {formatScoreStr(score2)}
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
+                    const score1 =
+                      match.score?.find((s) => s.inning.includes(team1Name)) ||
+                      match.score?.[0];
+                    const score2 =
+                      match.score?.find((s) => s.inning.includes(team2Name)) ||
+                      match.score?.[1];
 
-                      {/* Venue & Status */}
-                      <View className="mt-3 pt-3 border-t border-gray-200/30">
-                        <ThemedText
-                          className={`text-sm font-medium ${
-                            isLive
-                              ? "text-green-600"
-                              : activeTab === 1
-                                ? "text-blue-500"
-                                : "text-gray-500"
+                    const formatScoreStr = (s?: {
+                      r: number;
+                      w: number;
+                      o: number;
+                    }) => (s ? `${s.r}/${s.w} (${s.o} ov)` : null);
+
+                    return (
+                      <TouchableOpacity
+                        key={match.id}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/match/[id]",
+                            params: { id: match.id },
+                          })
+                        }
+                        className={`mb-3 rounded-2xl overflow-hidden ${
+                          isDark ? "bg-gray-800" : "bg-white"
+                        } shadow-md shadow-black/8 elevation-3`}
+                      >
+                        {/* Match Header */}
+                        <View
+                          className={`px-4 py-2 flex-row justify-between items-center ${
+                            isDark ? "bg-gray-700/50" : "bg-gray-50"
                           }`}
                         >
-                          {match.status}
-                          {activeTab === 1 &&
-                            match.date &&
-                            ` • ${formatDate(match.dateTimeGMT || match.date)}`}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+                          <View className="flex-row items-center flex-1">
+                            <View
+                              style={{
+                                backgroundColor: getMatchTypeBadgeColor(
+                                  match.matchType,
+                                ),
+                              }}
+                              className="px-2 py-0.5 rounded mr-2"
+                            >
+                              <ThemedText className="text-xs font-bold text-white uppercase">
+                                {match.matchType}
+                              </ThemedText>
+                            </View>
+                            <ThemedText
+                              className={`text-xs font-bold uppercase ${isLive ? "text-red-500" : "text-gray-500"}`}
+                            >
+                              {isLive
+                                ? "● LIVE"
+                                : activeTab === 1
+                                  ? "UPCOMING"
+                                  : "FINISHED"}
+                            </ThemedText>
+                          </View>
+                          <ThemedText
+                            className="text-xs opacity-50 pl-2"
+                            numberOfLines={1}
+                          >
+                            {match.venue?.split(",")[0]}
+                          </ThemedText>
+                        </View>
+
+                        {/* Teams & Scores */}
+                        <View className="p-4">
+                          {/* Team 1 */}
+                          <View className="flex-row justify-between items-center mb-2.5">
+                            <View className="flex-row items-center flex-1">
+                              <View className="w-8 h-8 mr-3 items-center justify-center">
+                                {getCountryFlag(team1Name) ? (
+                                  <Image
+                                    source={{
+                                      uri: getCountryFlag(team1Name) || "",
+                                    }}
+                                    className="w-8 h-6 rounded-sm"
+                                    resizeMode="cover"
+                                  />
+                                ) : (
+                                  <View
+                                    className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
+                                  >
+                                    <ThemedText className="font-bold">
+                                      {team1Name.charAt(0)}
+                                    </ThemedText>
+                                  </View>
+                                )}
+                              </View>
+                              <ThemedText
+                                className="font-semibold text-base flex-1"
+                                numberOfLines={1}
+                              >
+                                {team1Name}
+                              </ThemedText>
+                            </View>
+                            {score1 && (
+                              <View className="items-end">
+                                <ThemedText className="font-bold text-base">
+                                  {formatScoreStr(score1)}
+                                </ThemedText>
+                              </View>
+                            )}
+                          </View>
+
+                          {/* Team 2 */}
+                          <View className="flex-row justify-between items-center">
+                            <View className="flex-row items-center flex-1">
+                              <View className="w-8 h-8 mr-3 items-center justify-center">
+                                {getCountryFlag(team2Name) ? (
+                                  <Image
+                                    source={{
+                                      uri: getCountryFlag(team2Name) || "",
+                                    }}
+                                    className="w-8 h-6 rounded-sm"
+                                    resizeMode="cover"
+                                  />
+                                ) : (
+                                  <View
+                                    className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
+                                  >
+                                    <ThemedText className="font-bold">
+                                      {team2Name.charAt(0)}
+                                    </ThemedText>
+                                  </View>
+                                )}
+                              </View>
+                              <ThemedText
+                                className="font-semibold text-base flex-1"
+                                numberOfLines={1}
+                              >
+                                {team2Name}
+                              </ThemedText>
+                            </View>
+                            {score2 && (
+                              <View className="items-end">
+                                <ThemedText className="font-bold text-base">
+                                  {formatScoreStr(score2)}
+                                </ThemedText>
+                              </View>
+                            )}
+                          </View>
+
+                          {/* Venue & Status */}
+                          <View className="mt-3 pt-3 border-t border-gray-200/30">
+                            <ThemedText
+                              className={`text-sm font-medium ${
+                                isLive
+                                  ? "text-green-600"
+                                  : activeTab === 1
+                                    ? "text-blue-500"
+                                    : "text-gray-500"
+                              }`}
+                            >
+                              {match.status}
+                              {activeTab === 1 &&
+                                match.date &&
+                                ` • ${formatDate(match.dateTimeGMT || match.date)}`}
+                            </ThemedText>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))
             )}
           </View>
 
