@@ -1,31 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    RefreshControl,
-    ScrollView,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { MatchCard } from "@/components/match-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    fetchCurrentMatches,
-    fetchMatches,
-    getCountryFlag,
-    getMatchTypeBadgeColor,
-    groupMatchesBySeries,
-    initializeCountries,
-    isMatchCompleted,
-    isMatchLive,
-    isMatchUpcoming,
-    Match,
-    MatchGroup,
+  fetchMatches,
+  groupMatchesBySeries,
+  initializeCountries,
+  isMatchCompleted,
+  isMatchLive,
+  isMatchUpcoming,
+  Match,
+  MatchGroup,
 } from "@/services/cricapi";
 
 const TABS = ["Live", "Upcoming", "Recent"];
@@ -34,61 +34,20 @@ export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState(0);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [activeTab, setActiveTab] = useState("Live");
+  const [allMatches, setAllMatches] = useState<Match[]>([]);
+  const [filteredMatches, setFilteredMatches] = useState<MatchGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const loadMatches = async (tabIndex: number = activeTab) => {
-    setLoading(true);
+  const loadMatches = async () => {
     try {
       await initializeCountries();
-      let data: Match[] = [];
-
-      const [current, allMatches] = await Promise.all([
-        fetchCurrentMatches(),
-        fetchMatches(),
-      ]);
-
-      switch (tabIndex) {
-        case 0: // Live
-          data = current.filter((m) => isMatchLive(m.status));
-          break;
-        case 1: // Upcoming
-          // Check both endpoints for upcoming matches
-          const upcomingFromAll = allMatches.filter((m) =>
-            isMatchUpcoming(m.status),
-          );
-          const upcomingFromCurrent = current.filter((m) =>
-            isMatchUpcoming(m.status),
-          );
-          // Merge and deduplicate by id
-          const upcomingMap = new Map<string, Match>();
-          [...upcomingFromAll, ...upcomingFromCurrent].forEach((m) =>
-            upcomingMap.set(m.id, m),
-          );
-          data = Array.from(upcomingMap.values());
-          break;
-        case 2: // Recent / Completed
-          // First try: completed matches from currentMatches (more detailed scores)
-          data = current.filter((m) => isMatchCompleted(m.status));
-          if (data.length === 0) {
-            // Fallback: completed matches from allMatches
-            data = allMatches.filter((m) => isMatchCompleted(m.status));
-          }
-          if (data.length === 0) {
-            // Last fallback: anything not live and not upcoming
-            data = [...current, ...allMatches]
-              .filter(
-                (m) => !isMatchLive(m.status) && !isMatchUpcoming(m.status),
-              )
-              .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
-          }
-          break;
-      }
-      setMatches(data);
+      const data = await fetchMatches();
+      setAllMatches(data);
+      filterMatches(data, activeTab, searchQuery);
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
@@ -96,305 +55,171 @@ export default function MatchesScreen() {
     }
   };
 
+  const filterMatches = (matches: Match[], tab: string, query: string) => {
+    let filtered = matches;
+
+    // Filter by Tab
+    filtered = filtered.filter((match) => {
+      if (tab === "Live") {
+        return isMatchLive(match.status);
+      } else if (tab === "Upcoming") {
+        return isMatchUpcoming(match.status);
+      } else {
+        // Recent
+        return isMatchCompleted(match.status) || match.resultSet;
+      }
+    });
+
+    // Filter by Query
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.series_id.toLowerCase().includes(q) ||
+          m.venue.toLowerCase().includes(q) ||
+          m.teams.some((t) => t.toLowerCase().includes(q)),
+      );
+    }
+
+    setFilteredMatches(groupMatchesBySeries(filtered));
+  };
+
+  const onTabChange = (tab: string) => {
+    setActiveTab(tab);
+    filterMatches(allMatches, tab, searchQuery);
+  };
+
+  const onSearch = (text: string) => {
+    setSearchQuery(text);
+    filterMatches(allMatches, activeTab, text);
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadMatches();
     setRefreshing(false);
-  }, [activeTab]);
-
-  const handleTabChange = (index: number) => {
-    setActiveTab(index);
-    loadMatches(index);
-  };
+  }, [activeTab, searchQuery]);
 
   useEffect(() => {
     loadMatches();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   return (
     <ThemedView className="flex-1">
       {/* Header */}
-      <View
-        style={{ paddingTop: insets.top }}
-        className={`px-5 pb-4 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-      >
-        <View className="flex-row items-center justify-between pt-3">
-          <ThemedText className="text-xl font-bold text-white">
-            Matches
-          </ThemedText>
-          <TouchableOpacity>
-            <Ionicons name="filter" size={22} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
-        <View className="flex-row mt-4 gap-2">
-          {TABS.map((tab, index) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => handleTabChange(index)}
-              className={`px-4 py-2 rounded-full ${
-                activeTab === index ? "bg-white" : "bg-white/20"
-              }`}
-            >
-              <ThemedText
-                className={`text-sm font-semibold ${
-                  activeTab === index ? "text-green-600" : "text-white"
-                }`}
-              >
-                {tab}
-              </ThemedText>
+      <View style={{ paddingTop: insets.top }}>
+        <LinearGradient
+          colors={
+            isDark
+              ? CricketColors.gradients.headerDark
+              : CricketColors.gradients.header
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="px-5 pb-4 pt-3 rounded-b-3xl shadow-sm z-10"
+        >
+          <View className="flex-row items-center justify-between mb-4">
+            <ThemedText className="text-xl font-bold text-white tracking-tight">
+              Fixture Center
+            </ThemedText>
+            <TouchableOpacity className="bg-white/20 p-2 rounded-full">
+              <Ionicons name="filter" size={20} color="white" />
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+
+          {/* Search Bar */}
+          <View className="flex-row items-center bg-white/20 rounded-xl px-3 py-2 mb-4">
+            <Ionicons name="search" size={18} color="rgba(255,255,255,0.7)" />
+            <TextInput
+              placeholder="Search matches, teams, series..."
+              placeholderTextColor="rgba(255,255,255,0.7)"
+              className="flex-1 ml-2 text-white font-medium"
+              value={searchQuery}
+              onChangeText={onSearch}
+            />
+          </View>
+
+          {/* Tabs */}
+          <View className="flex-row bg-black/10 p-1 rounded-xl">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  className={`flex-1 items-center py-2 rounded-lg ${
+                    isActive ? "bg-background shadow-sm" : ""
+                  }`}
+                  onPress={() => onTabChange(tab)}
+                >
+                  <ThemedText
+                    className={`text-xs font-bold ${
+                      isActive
+                        ? isDark
+                          ? "text-gray-900"
+                          : "text-green-700"
+                        : "text-white/70"
+                    }`}
+                  >
+                    {tab}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </LinearGradient>
       </View>
 
       {loading && !refreshing ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#00A651" />
-          <ThemedText className="mt-4 opacity-60">
-            Loading matches...
-          </ThemedText>
+          <ActivityIndicator size="large" color={CricketColors.primary[500]} />
         </View>
       ) : (
         <ScrollView
-          className="flex-1"
+          className="flex-1 -mt-2 bg-transparent"
+          contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#00A651"
+              tintColor={CricketColors.primary[500]}
             />
           }
         >
-          <View className="p-4">
-            {matches.length === 0 ? (
-              <View className="items-center py-20">
-                <ThemedText className="text-5xl mb-4">🏏</ThemedText>
-                <ThemedText className="text-lg font-semibold mb-2">
-                  No Matches Found
-                </ThemedText>
-                <ThemedText className="text-sm opacity-60 text-center">
-                  No {TABS[activeTab].toLowerCase()} matches available.{"\n"}
-                  Pull down to refresh.
-                </ThemedText>
-              </View>
-            ) : (
-              groupMatchesBySeries(matches).map((group: MatchGroup) => (
-                <View key={group.seriesName} className="mb-5">
-                  {/* Series Header */}
-                  <View
-                    className={`flex-row items-center px-3 py-2.5 mb-2 rounded-xl ${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } shadow-sm shadow-black/5 elevation-1`}
+          {filteredMatches.length === 0 ? (
+            <View className="items-center py-20 opacity-50">
+              <Ionicons
+                name="documents-outline"
+                size={64}
+                color={isDark ? "white" : "black"}
+              />
+              <ThemedText className="mt-4 font-medium">
+                No matches found
+              </ThemedText>
+            </View>
+          ) : (
+            filteredMatches.map((group) => (
+              <View key={group.seriesName} className="mb-6">
+                {/* Series Header */}
+                <View className="flex-row items-center px-5 py-2 mb-2">
+                  <ThemedText className="text-base mr-2">🏆</ThemedText>
+                  <ThemedText
+                    className="text-xs font-bold uppercase tracking-wider opacity-60 flex-1"
+                    numberOfLines={1}
                   >
-                    <ThemedText className="text-base mr-2">🏆</ThemedText>
-                    <ThemedText
-                      className="text-sm font-bold flex-1"
-                      numberOfLines={2}
-                    >
-                      {group.seriesName}
-                    </ThemedText>
-                    <View
-                      className={`px-2 py-0.5 rounded-full ${
-                        isDark ? "bg-gray-700" : "bg-gray-100"
-                      }`}
-                    >
-                      <ThemedText className="text-xs opacity-60">
-                        {group.matches.length} match
-                        {group.matches.length !== 1 ? "es" : ""}
-                      </ThemedText>
-                    </View>
-                  </View>
-
-                  {/* Matches in this series */}
-                  {group.matches.map((match) => {
-                    const isLive = isMatchLive(match.status);
-                    const team1Name = match.teams[0] || "Team 1";
-                    const team2Name = match.teams[1] || "Team 2";
-
-                    const score1 =
-                      match.score?.find((s) => s.inning.includes(team1Name)) ||
-                      match.score?.[0];
-                    const score2 =
-                      match.score?.find((s) => s.inning.includes(team2Name)) ||
-                      match.score?.[1];
-
-                    const formatScoreStr = (s?: {
-                      r: number;
-                      w: number;
-                      o: number;
-                    }) => (s ? `${s.r}/${s.w} (${s.o} ov)` : null);
-
-                    return (
-                      <TouchableOpacity
-                        key={match.id}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/match/[id]",
-                            params: { id: match.id },
-                          })
-                        }
-                        className={`mb-3 rounded-2xl overflow-hidden ${
-                          isDark ? "bg-gray-800" : "bg-white"
-                        } shadow-md shadow-black/8 elevation-3`}
-                      >
-                        {/* Match Header */}
-                        <View
-                          className={`px-4 py-2 flex-row justify-between items-center ${
-                            isDark ? "bg-gray-700/50" : "bg-gray-50"
-                          }`}
-                        >
-                          <View className="flex-row items-center flex-1">
-                            <View
-                              style={{
-                                backgroundColor: getMatchTypeBadgeColor(
-                                  match.matchType,
-                                ),
-                              }}
-                              className="px-2 py-0.5 rounded mr-2"
-                            >
-                              <ThemedText className="text-xs font-bold text-white uppercase">
-                                {match.matchType}
-                              </ThemedText>
-                            </View>
-                            <ThemedText
-                              className={`text-xs font-bold uppercase ${isLive ? "text-red-500" : "text-gray-500"}`}
-                            >
-                              {isLive
-                                ? "● LIVE"
-                                : activeTab === 1
-                                  ? "UPCOMING"
-                                  : "FINISHED"}
-                            </ThemedText>
-                          </View>
-                          <ThemedText
-                            className="text-xs opacity-50 pl-2"
-                            numberOfLines={1}
-                          >
-                            {match.venue?.split(",")[0]}
-                          </ThemedText>
-                        </View>
-
-                        {/* Teams & Scores */}
-                        <View className="p-4">
-                          {/* Team 1 */}
-                          <View className="flex-row justify-between items-center mb-2.5">
-                            <View className="flex-row items-center flex-1">
-                              <View className="w-8 h-8 mr-3 items-center justify-center">
-                                {getCountryFlag(team1Name) ? (
-                                  <Image
-                                    source={{
-                                      uri: getCountryFlag(team1Name) || "",
-                                    }}
-                                    className="w-8 h-6 rounded-sm"
-                                    resizeMode="cover"
-                                  />
-                                ) : (
-                                  <View
-                                    className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                                  >
-                                    <ThemedText className="font-bold">
-                                      {team1Name.charAt(0)}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                              </View>
-                              <ThemedText
-                                className="font-semibold text-base flex-1"
-                                numberOfLines={1}
-                              >
-                                {team1Name}
-                              </ThemedText>
-                            </View>
-                            {score1 && (
-                              <View className="items-end">
-                                <ThemedText className="font-bold text-base">
-                                  {formatScoreStr(score1)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Team 2 */}
-                          <View className="flex-row justify-between items-center">
-                            <View className="flex-row items-center flex-1">
-                              <View className="w-8 h-8 mr-3 items-center justify-center">
-                                {getCountryFlag(team2Name) ? (
-                                  <Image
-                                    source={{
-                                      uri: getCountryFlag(team2Name) || "",
-                                    }}
-                                    className="w-8 h-6 rounded-sm"
-                                    resizeMode="cover"
-                                  />
-                                ) : (
-                                  <View
-                                    className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                                  >
-                                    <ThemedText className="font-bold">
-                                      {team2Name.charAt(0)}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                              </View>
-                              <ThemedText
-                                className="font-semibold text-base flex-1"
-                                numberOfLines={1}
-                              >
-                                {team2Name}
-                              </ThemedText>
-                            </View>
-                            {score2 && (
-                              <View className="items-end">
-                                <ThemedText className="font-bold text-base">
-                                  {formatScoreStr(score2)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Venue & Status */}
-                          <View className="mt-3 pt-3 border-t border-gray-200/30">
-                            <ThemedText
-                              className={`text-sm font-medium ${
-                                isLive
-                                  ? "text-green-600"
-                                  : activeTab === 1
-                                    ? "text-blue-500"
-                                    : "text-gray-500"
-                              }`}
-                            >
-                              {match.status}
-                              {activeTab === 1 &&
-                                match.date &&
-                                ` • ${formatDate(match.dateTimeGMT || match.date)}`}
-                            </ThemedText>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
+                    {group.seriesName}
+                  </ThemedText>
                 </View>
-              ))
-            )}
-          </View>
 
-          {/* Bottom Spacer for Tab Bar */}
-          <View className="h-24" />
+                {group.matches.map((match) => (
+                  <Link key={match.id} href={`/match/${match.id}`} asChild>
+                    <MatchCard data={match as any} showSeries={false} />
+                  </Link>
+                ))}
+              </View>
+            ))
+          )}
         </ScrollView>
       )}
     </ThemedView>

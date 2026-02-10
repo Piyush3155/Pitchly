@@ -1,22 +1,21 @@
-import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { MatchCard } from "@/components/match-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   fetchCurrentMatches,
-  getCountryFlag,
-  getMatchTypeBadgeColor,
   groupMatchesBySeries,
   initializeCountries,
   isMatchLive,
@@ -60,231 +59,90 @@ export default function LiveScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatScoreStr = (s?: { r: number; w: number; o: number }) =>
-    s ? `${s.r}/${s.w} (${s.o} ov)` : null;
-
   return (
     <ThemedView className="flex-1">
       {/* Header */}
-      <View
-        style={{ paddingTop: insets.top }}
-        className={`px-5 pb-4 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-      >
-        <View className="flex-row items-center pt-3">
-          <View className="w-3 h-3 rounded-full bg-red-500 mr-2" />
-          <ThemedText className="text-xl font-bold text-white">
-            Live Matches
-          </ThemedText>
-        </View>
+      <View style={{ paddingTop: insets.top }}>
+        <LinearGradient
+          colors={
+            isDark
+              ? CricketColors.gradients.headerDark
+              : CricketColors.gradients.header
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="px-5 pb-4 pt-3 rounded-b-3xl shadow-md z-10"
+        >
+          <View className="flex-row items-center">
+            <View className="w-2.5 h-2.5 rounded-full bg-red-500 mr-2 animate-pulse border-2 border-white/20" />
+            <ThemedText className="text-xl font-bold text-white tracking-tight">
+              Live Coverage
+            </ThemedText>
+          </View>
+        </LinearGradient>
       </View>
 
       {loading && !refreshing ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#00A651" />
-          <ThemedText className="mt-4 opacity-60">
-            Loading live matches...
+          <ActivityIndicator size="large" color={CricketColors.primary[500]} />
+          <ThemedText className="mt-4 opacity-60 font-medium">
+            Tuning into live frequencies...
           </ThemedText>
         </View>
       ) : (
         <ScrollView
-          className="flex-1"
+          className="flex-1 -mt-2 bg-transparent"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#00A651"
+              tintColor={CricketColors.primary[500]}
             />
           }
         >
-          <View className="p-4">
+          <View>
             {matches.length === 0 ? (
-              <View className="items-center py-20">
-                <ThemedText className="text-5xl mb-4">🏏</ThemedText>
-                <ThemedText className="text-lg font-semibold mb-2">
-                  No Live Matches
+              <View className="items-center py-20 mx-6">
+                <ThemedText className="text-6xl mb-4 opacity-80">🏏</ThemedText>
+                <ThemedText className="text-xl font-bold mb-2">
+                  All Quiet on the Pitch
                 </ThemedText>
-                <ThemedText className="text-sm opacity-60 text-center">
-                  There are no live matches at the moment.{"\n"}Pull down to
-                  refresh.
+                <ThemedText className="text-sm opacity-60 text-center leading-5">
+                  There are no live matches at the moment.{"\n"}Check back later
+                  or explore upcoming fixtures.
                 </ThemedText>
               </View>
             ) : (
               groupMatchesBySeries(matches).map((group: MatchGroup) => (
-                <View key={group.seriesName} className="mb-5">
+                <View key={group.seriesName} className="mb-6">
                   {/* Series Header */}
-                  <View
-                    className={`flex-row items-center px-3 py-2.5 mb-2 rounded-xl ${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } shadow-sm shadow-black/5 elevation-1`}
-                  >
+                  <View className="flex-row items-center px-5 py-2 mb-2">
                     <ThemedText className="text-base mr-2">🏆</ThemedText>
                     <ThemedText
-                      className="text-sm font-bold flex-1"
-                      numberOfLines={2}
+                      className="text-xs font-bold uppercase tracking-wider opacity-60 flex-1"
+                      numberOfLines={1}
                     >
                       {group.seriesName}
                     </ThemedText>
-                    <View className="bg-red-500 px-2 py-0.5 rounded-full">
-                      <ThemedText className="text-xs font-bold text-white">
+                    <View className="bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                      <ThemedText className="text-[10px] font-bold text-red-500">
                         {group.matches.length} LIVE
                       </ThemedText>
                     </View>
                   </View>
 
                   {/* Matches in this series */}
-                  {group.matches.map((match) => {
-                    const team1Name = match.teams[0] || "Team 1";
-                    const team2Name = match.teams[1] || "Team 2";
-
-                    const score1 =
-                      match.score?.find((s) => s.inning.includes(team1Name)) ||
-                      match.score?.[0];
-                    const score2 =
-                      match.score?.find((s) => s.inning.includes(team2Name)) ||
-                      match.score?.[1];
-
-                    return (
-                      <TouchableOpacity
-                        key={match.id}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/match/[id]",
-                            params: { id: match.id },
-                          })
-                        }
-                        className={`mb-4 rounded-2xl overflow-hidden ${
-                          isDark ? "bg-gray-800" : "bg-white"
-                        } shadow-lg shadow-black/10 elevation-4`}
-                      >
-                        {/* Match Header */}
-                        <View
-                          className={`px-4 py-2.5 flex-row justify-between items-center border-b ${
-                            isDark
-                              ? "border-gray-700 bg-gray-700/50"
-                              : "border-gray-100 bg-gray-50"
-                          }`}
-                        >
-                          <View className="flex-row items-center flex-1">
-                            <View className="bg-red-500 px-2 py-0.5 rounded mr-2">
-                              <ThemedText className="text-xs font-bold text-white uppercase">
-                                ● LIVE
-                              </ThemedText>
-                            </View>
-                            <View
-                              style={{
-                                backgroundColor: getMatchTypeBadgeColor(
-                                  match.matchType,
-                                ),
-                              }}
-                              className="px-2 py-0.5 rounded mr-2"
-                            >
-                              <ThemedText className="text-xs font-bold text-white uppercase">
-                                {match.matchType}
-                              </ThemedText>
-                            </View>
-                            <ThemedText
-                              className="text-xs opacity-50 pl-2"
-                              numberOfLines={1}
-                            >
-                              {match.venue?.split(",")[0]}
-                            </ThemedText>
-                          </View>
-                        </View>
-
-                        {/* Teams & Scores */}
-                        <View className="p-4">
-                          {/* Team 1 */}
-                          <View className="flex-row justify-between items-center mb-3">
-                            <View className="flex-row items-center flex-1">
-                              <View className="w-10 h-10 mr-3 items-center justify-center">
-                                {getCountryFlag(team1Name) ? (
-                                  <Image
-                                    source={{
-                                      uri: getCountryFlag(team1Name) || "",
-                                    }}
-                                    className="w-10 h-8 rounded-sm"
-                                    resizeMode="cover"
-                                  />
-                                ) : (
-                                  <View
-                                    className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                                  >
-                                    <ThemedText className="font-bold text-lg">
-                                      {team1Name.charAt(0)}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                              </View>
-                              <View className="flex-1">
-                                <ThemedText className="font-semibold text-base">
-                                  {team1Name}
-                                </ThemedText>
-                              </View>
-                            </View>
-                            {score1 && (
-                              <View className="items-end">
-                                <ThemedText className="font-bold text-xl">
-                                  {formatScoreStr(score1)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Team 2 */}
-                          <View className="flex-row justify-between items-center">
-                            <View className="flex-row items-center flex-1">
-                              <View className="w-10 h-10 mr-3 items-center justify-center">
-                                {getCountryFlag(team2Name) ? (
-                                  <Image
-                                    source={{
-                                      uri: getCountryFlag(team2Name) || "",
-                                    }}
-                                    className="w-10 h-8 rounded-sm"
-                                    resizeMode="cover"
-                                  />
-                                ) : (
-                                  <View
-                                    className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                                  >
-                                    <ThemedText className="font-bold text-lg">
-                                      {team2Name.charAt(0)}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                              </View>
-                              <View className="flex-1">
-                                <ThemedText className="font-semibold text-base">
-                                  {team2Name}
-                                </ThemedText>
-                              </View>
-                            </View>
-                            {score2 && (
-                              <View className="items-end">
-                                <ThemedText className="font-bold text-xl">
-                                  {formatScoreStr(score2)}
-                                </ThemedText>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Match Status */}
-                          <View className="mt-3 pt-3 border-t border-gray-200/30">
-                            <ThemedText className="text-sm font-medium text-green-600">
-                              {match.status}
-                            </ThemedText>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {group.matches.map((match) => (
+                    <Link key={match.id} href={`/match/${match.id}`} asChild>
+                      <MatchCard data={match as any} showSeries={false} />
+                    </Link>
+                  ))}
                 </View>
               ))
             )}
           </View>
-
-          {/* Bottom Spacer for Tab Bar */}
-          <View className="h-24" />
         </ScrollView>
       )}
     </ThemedView>

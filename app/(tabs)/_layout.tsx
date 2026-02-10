@@ -4,6 +4,7 @@ import React from "react";
 import { Platform } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
@@ -13,23 +14,29 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#00A651", // Cricbuzz green
-        tabBarInactiveTintColor: isDark ? "#888888" : "#666666",
+        tabBarActiveTintColor: CricketColors.primary[500],
+        tabBarInactiveTintColor: isDark
+          ? CricketColors.dark.textMuted
+          : CricketColors.light.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isDark ? "#1a1a1a" : "#ffffff",
-          borderTopWidth: 1,
-          borderTopColor: isDark ? "#2a2a2a" : "#eeeeee",
-          height: Platform.OS === "ios" ? 88 : 65,
+          backgroundColor: isDark
+            ? CricketColors.dark.cardElevated
+            : CricketColors.light.cardElevated,
+          borderTopWidth: 0,
+          borderTopColor: "transparent",
+          height: Platform.OS === "ios" ? 88 : 68,
           paddingTop: 8,
-          paddingBottom: Platform.OS === "ios" ? 28 : 10,
-          elevation: 8,
+          paddingBottom: Platform.OS === "ios" ? 28 : 12,
+          elevation: 10,
           shadowColor: "#000000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -62,7 +69,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? "radio" : "radio-outline"}
               size={24}
-              color={color}
+              color={focused ? CricketColors.status.live : color}
             />
           ),
         }}
@@ -81,12 +88,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="teams"
+        name="series"
         options={{
-          title: "Teams",
+          title: "Series",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "people" : "people-outline"}
+              name={focused ? "trophy" : "trophy-outline"}
               size={24}
               color={color}
             />
@@ -94,12 +101,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="series"
+        name="teams"
         options={{
-          title: "Series",
+          title: "Teams",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "trophy" : "trophy-outline"}
+              name={focused ? "people" : "people-outline"}
               size={24}
               color={color}
             />

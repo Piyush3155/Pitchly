@@ -57,6 +57,7 @@ export interface Match {
   score?: MatchScore[];
   series_id: string;
   fantasyEnabled: boolean;
+  resultSet: boolean;
   teamInfo?: TeamInfo[];
 }
 
@@ -156,6 +157,7 @@ export interface MatchScorecard {
   tpiScore?: string;
   series_id: string;
   fantasyEnabled: boolean;
+  resultSet: boolean;
   teamInfo?: TeamInfo[];
   scorecard: ScorecardInning[];
 }
@@ -492,16 +494,15 @@ export function groupMatchesBySeries(matches: Match[]): MatchGroup[] {
 
 // Get match type badge color
 export function getMatchTypeBadgeColor(matchType: string): string {
-  switch (matchType?.toLowerCase()) {
-    case "test":
-      return "#dc2626"; // red
-    case "odi":
-      return "#2563eb"; // blue
-    case "t20":
-      return "#16a34a"; // green
-    default:
-      return "#6b7280"; // gray
-  }
+  if (!matchType) return "#6b7280";
+  const lower = matchType.toLowerCase();
+
+  if (lower.includes("test") || lower.includes("first class")) return "#dc2626"; // red
+  if (lower.includes("odi") || lower.includes("list a")) return "#2563eb"; // blue
+  if (lower.includes("t20")) return "#16a34a"; // green
+  if (lower.includes("t10")) return "#f97316"; // orange
+
+  return "#6b7280"; // gray
 }
 
 // Check if match is live
@@ -515,13 +516,15 @@ export function isMatchLive(status: string): boolean {
     lower.includes("match drawn") ||
     lower.includes("no result") ||
     lower.includes("abandoned") ||
-    lower.includes("match starts at")
+    lower.includes("match starts at") ||
+    lower.includes("scheduled")
   ) {
     return false;
   }
 
   const liveKeywords = [
     "live",
+    "match started",
     "innings break",
     "day ", // "Day 2" etc - note the space to avoid matching "today" etc
     "session",
@@ -539,6 +542,7 @@ export function isMatchLive(status: string): boolean {
     "lead by",
     "need ",
     "require ",
+    "break",
   ];
   return liveKeywords.some((keyword) => lower.includes(keyword));
 }

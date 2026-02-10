@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Image,
+    RefreshControl,
     ScrollView,
     TouchableOpacity,
     View,
@@ -12,704 +14,449 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    BattingEntry,
-    BowlingEntry,
     fetchMatchScorecard,
-    getMatchTypeBadgeColor,
-    initializeCountries,
-    isMatchLive,
-    MatchScorecard,
-    ScorecardInning,
+    getCountryFlag,
+    Match,
+    MatchScore
 } from "@/services/cricapi";
 
 const DETAIL_TABS = ["Info", "Scorecard"];
 
 export default function MatchDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const [matchData, setMatchData] = useState<MatchScorecard | null>(null);
+  const [matchData, setMatchData] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
-  const [activeInning, setActiveInning] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("Info");
 
-  useEffect(() => {
-    loadMatchData();
-  }, [id]);
-
-  const loadMatchData = async () => {
-    if (!id) return;
-    setLoading(true);
+  const loadMatchDetails = async () => {
     try {
-      await initializeCountries();
-      const data = await fetchMatchScorecard(id);
-      setMatchData(data);
+      if (typeof id === "string") {
+        const data = await fetchMatchScorecard(id);
+        setMatchData(data);
+      }
     } catch (error) {
-      console.error("Error loading match data:", error);
+      console.error("Error loading match details:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatScoreStr = (s?: { r: number; w: number; o: number }) =>
-    s ? `${s.r}/${s.w} (${s.o} ov)` : "";
-
-  const getTeamImg = (teamName: string) => {
-    const info = matchData?.teamInfo?.find(
-      (t) =>
-        t.name.toLowerCase() === teamName.toLowerCase() ||
-        t.shortname.toLowerCase() === teamName.toLowerCase(),
-    );
-    return info?.img || null;
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadMatchDetails();
+    setRefreshing(false);
   };
 
-  const getTeamShort = (teamName: string) => {
-    const info = matchData?.teamInfo?.find(
-      (t) =>
-        t.name.toLowerCase() === teamName.toLowerCase() ||
-        t.shortname.toLowerCase() === teamName.toLowerCase(),
-    );
-    return info?.shortname || teamName.substring(0, 3).toUpperCase();
-  };
+  useEffect(() => {
+    loadMatchDetails();
+  }, [id]);
 
-  if (loading) {
-    return (
-      <ThemedView className="flex-1">
-        <View
-          style={{ paddingTop: insets.top }}
-          className={`px-4 pb-3 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="flex-row items-center pt-3"
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-            <ThemedText className="text-white text-lg font-semibold ml-2">
-              Match Details
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#00A651" />
-          <ThemedText className="mt-4 opacity-60">
-            Loading match details...
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
-  }
-
-  if (!matchData) {
-    return (
-      <ThemedView className="flex-1">
-        <View
-          style={{ paddingTop: insets.top }}
-          className={`px-4 pb-3 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="flex-row items-center pt-3"
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-            <ThemedText className="text-white text-lg font-semibold ml-2">
-              Match Details
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-        <View className="flex-1 items-center justify-center p-8">
-          <ThemedText className="text-5xl mb-4">😔</ThemedText>
-          <ThemedText className="text-lg font-semibold mb-2 text-center">
-            Scorecard Unavailable
-          </ThemedText>
-          <ThemedText className="text-sm opacity-60 text-center">
-            Detailed scorecard data is not available for this match. This may
-            require a premium API plan.
-          </ThemedText>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="mt-6 bg-green-600 px-6 py-3 rounded-full"
-          >
-            <ThemedText className="text-white font-semibold">
-              Go Back
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-      </ThemedView>
-    );
-  }
-
-  const live = isMatchLive(matchData.status);
-  const team1 = matchData.teams?.[0] || "Team 1";
-  const team2 = matchData.teams?.[1] || "Team 2";
+  const team1Name = matchData?.teams[0] || "Team 1";
+  const team2Name = matchData?.teams[1] || "Team 2";
 
   const score1 =
-    matchData.score?.find((s) => s.inning.includes(team1)) ||
-    matchData.score?.[0];
+    matchData?.score?.find((s) => s.inning.includes(team1Name)) ||
+    matchData?.score?.[0];
   const score2 =
-    matchData.score?.find((s) => s.inning.includes(team2)) ||
-    matchData.score?.[1];
+    matchData?.score?.find((s) => s.inning.includes(team2Name)) ||
+    matchData?.score?.[1];
 
-  const scorecard = matchData.scorecard || [];
+  const formatScoreStr = (s?: MatchScore) =>
+    s ? `${s.r}/${s.w} (${s.o})` : "Yet to bat";
 
-  // ===================== Render Helpers =====================
-
-  const renderBattingRow = (entry: BattingEntry, index: number) => (
-    <View
-      key={`bat-${index}`}
-      className={`flex-row items-center py-2.5 px-3 border-b ${
-        isDark ? "border-gray-700" : "border-gray-100"
-      }`}
-    >
-      <View className="flex-1 mr-2">
-        <ThemedText className="text-sm font-medium" numberOfLines={1}>
-          {entry.batsman?.name || "Unknown"}
-        </ThemedText>
-        <ThemedText className="text-xs opacity-50 mt-0.5" numberOfLines={1}>
-          {entry["dismissal-text"] || entry.dismissal || "batting"}
-        </ThemedText>
-      </View>
-      <ThemedText className="w-8 text-center text-sm font-bold">
-        {entry.r ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-xs opacity-60">
-        {entry.b ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-xs opacity-60">
-        {entry["4s"] ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-xs opacity-60">
-        {entry["6s"] ?? 0}
-      </ThemedText>
-      <ThemedText className="w-12 text-center text-xs opacity-60">
-        {entry.sr?.toFixed(1) ?? "0.0"}
-      </ThemedText>
-    </View>
-  );
-
-  const renderBowlingRow = (entry: BowlingEntry, index: number) => (
-    <View
-      key={`bowl-${index}`}
-      className={`flex-row items-center py-2.5 px-3 border-b ${
-        isDark ? "border-gray-700" : "border-gray-100"
-      }`}
-    >
-      <View className="flex-1 mr-2">
-        <ThemedText className="text-sm font-medium" numberOfLines={1}>
-          {entry.bowler?.name || "Unknown"}
-        </ThemedText>
-      </View>
-      <ThemedText className="w-8 text-center text-xs opacity-60">
-        {entry.o ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-xs opacity-60">
-        {entry.m ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-sm font-bold">
-        {entry.r ?? 0}
-      </ThemedText>
-      <ThemedText className="w-8 text-center text-sm font-bold text-green-600">
-        {entry.w ?? 0}
-      </ThemedText>
-      <ThemedText className="w-12 text-center text-xs opacity-60">
-        {entry.eco?.toFixed(1) ?? "0.0"}
-      </ThemedText>
-    </View>
-  );
-
-  const renderInningsScorecard = (inning: ScorecardInning) => {
-    const batting = inning.batting || [];
-    const bowling = inning.bowling || [];
-
-    return (
-      <View key={inning.inning} className="mb-2">
-        {/* Batting Section */}
-        <View
-          className={`rounded-xl overflow-hidden mb-4 ${
-            isDark ? "bg-gray-800" : "bg-white"
-          } shadow-sm shadow-black/5 elevation-2`}
-        >
-          <View
-            className={`px-3 py-2.5 flex-row items-center justify-between ${
-              isDark ? "bg-gray-700" : "bg-green-50"
-            }`}
-          >
-            <ThemedText className="text-sm font-bold text-green-600">
-              🏏 Batting
-            </ThemedText>
-          </View>
-
-          {/* Batting Header */}
-          <View
-            className={`flex-row items-center py-2 px-3 border-b ${
-              isDark
-                ? "bg-gray-700/50 border-gray-600"
-                : "bg-gray-50 border-gray-200"
-            }`}
-          >
-            <ThemedText className="flex-1 text-xs font-semibold opacity-50">
-              BATTER
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              R
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              B
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              4s
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              6s
-            </ThemedText>
-            <ThemedText className="w-12 text-center text-xs font-semibold opacity-50">
-              SR
-            </ThemedText>
-          </View>
-
-          {/* Batting Rows */}
-          {batting.length > 0 ? (
-            batting.map((b, i) => renderBattingRow(b, i))
-          ) : (
-            <View className="p-4 items-center">
-              <ThemedText className="text-sm opacity-50">
-                No batting data available
-              </ThemedText>
-            </View>
-          )}
-
-          {/* Extras & Total */}
-          {inning.extras && (
-            <View
-              className={`px-3 py-2 border-t ${
-                isDark ? "border-gray-600" : "border-gray-200"
-              }`}
-            >
-              <ThemedText className="text-xs opacity-60">
-                Extras: {inning.extras.r ?? 0} (b {inning.extras.b ?? 0}, lb{" "}
-                {inning.extras.lb ?? 0}, w {inning.extras.w ?? 0}, nb{" "}
-                {inning.extras.nb ?? 0})
-              </ThemedText>
-            </View>
-          )}
-
-          <View
-            className={`px-3 py-2.5 border-t ${
-              isDark
-                ? "border-gray-600 bg-gray-700/30"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            <ThemedText className="text-sm font-bold">
-              Total: {inning.totalRuns ?? "—"}/{inning.totalWickets ?? "—"} (
-              {inning.totalOvers ?? "—"} ov)
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Bowling Section */}
-        <View
-          className={`rounded-xl overflow-hidden mb-4 ${
-            isDark ? "bg-gray-800" : "bg-white"
-          } shadow-sm shadow-black/5 elevation-2`}
-        >
-          <View
-            className={`px-3 py-2.5 flex-row items-center ${
-              isDark ? "bg-gray-700" : "bg-red-50"
-            }`}
-          >
-            <ThemedText className="text-sm font-bold text-red-500">
-              🎯 Bowling
-            </ThemedText>
-          </View>
-
-          {/* Bowling Header */}
-          <View
-            className={`flex-row items-center py-2 px-3 border-b ${
-              isDark
-                ? "bg-gray-700/50 border-gray-600"
-                : "bg-gray-50 border-gray-200"
-            }`}
-          >
-            <ThemedText className="flex-1 text-xs font-semibold opacity-50">
-              BOWLER
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              O
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              M
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              R
-            </ThemedText>
-            <ThemedText className="w-8 text-center text-xs font-semibold opacity-50">
-              W
-            </ThemedText>
-            <ThemedText className="w-12 text-center text-xs font-semibold opacity-50">
-              ECO
-            </ThemedText>
-          </View>
-
-          {/* Bowling Rows */}
-          {bowling.length > 0 ? (
-            bowling.map((b, i) => renderBowlingRow(b, i))
-          ) : (
-            <View className="p-4 items-center">
-              <ThemedText className="text-sm opacity-50">
-                No bowling data available
-              </ThemedText>
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  // ===================== Tab Content =====================
+  const isLive =
+    matchData?.status === "Match Started" || matchData?.status === "Live";
 
   const renderInfoTab = () => (
-    <View className="p-4">
-      {/* Match Info Card */}
+    <View className="px-4 py-6">
       <View
-        className={`rounded-xl overflow-hidden mb-4 ${
+        className={`rounded-2xl p-5 mb-5 ${
           isDark ? "bg-gray-800" : "bg-white"
-        } shadow-sm shadow-black/5 elevation-2`}
+        } shadow-sm border border-gray-100 dark:border-gray-800`}
       >
-        <View className={`px-4 py-3 ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
-          <ThemedText className="text-sm font-bold opacity-70">
-            MATCH INFO
-          </ThemedText>
+        <ThemedText className="font-bold text-lg mb-4">Match Info</ThemedText>
+
+        <View className="flex-row items-start mb-3">
+          <Ionicons
+            name="trophy-outline"
+            size={16}
+            color={isDark ? "gray" : "#666"}
+            style={{ marginTop: 2 }}
+          />
+          <View className="ml-3 flex-1">
+            <ThemedText className="text-sm opacity-60">Series</ThemedText>
+            <ThemedText className="font-medium text-base mt-0.5">
+              {(matchData as any).seriesName || "Series Name Unavailable"}
+            </ThemedText>
+          </View>
         </View>
 
-        <View className="p-4">
-          <InfoRow label="Match" value={matchData.name} />
-          <InfoRow label="Format" value={matchData.matchType?.toUpperCase()} />
-          <InfoRow label="Venue" value={matchData.venue} />
-          <InfoRow
-            label="Date"
-            value={new Date(
-              matchData.dateTimeGMT || matchData.date,
-            ).toLocaleDateString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+        <View className="flex-row items-start mb-3">
+          <Ionicons
+            name="location-outline"
+            size={16}
+            color={isDark ? "gray" : "#666"}
+            style={{ marginTop: 2 }}
           />
-          <InfoRow label="Status" value={matchData.status} isStatus />
+          <View className="ml-3 flex-1">
+            <ThemedText className="text-sm opacity-60">Venue</ThemedText>
+            <ThemedText className="font-medium text-base mt-0.5">
+              {matchData?.venue}
+            </ThemedText>
+          </View>
+        </View>
+
+        <View className="flex-row items-start mb-3">
+          <Ionicons
+            name="calendar-outline"
+            size={16}
+            color={isDark ? "gray" : "#666"}
+            style={{ marginTop: 2 }}
+          />
+          <View className="ml-3 flex-1">
+            <ThemedText className="text-sm opacity-60">Date & Time</ThemedText>
+            <ThemedText className="font-medium text-base mt-0.5">
+              {matchData?.dateTimeGMT
+                ? new Date(matchData.dateTimeGMT).toLocaleString()
+                : "TBA"}
+            </ThemedText>
+          </View>
+        </View>
+
+        <View className="flex-row items-start">
+          <Ionicons
+            name="information-circle-outline"
+            size={16}
+            color={isDark ? "gray" : "#666"}
+            style={{ marginTop: 2 }}
+          />
+          <View className="ml-3 flex-1">
+            <ThemedText className="text-sm opacity-60">Match Status</ThemedText>
+            <ThemedText
+              className={`font-bold text-base mt-0.5 ${isLive ? "text-red-500" : ""}`}
+            >
+              {matchData?.status}
+            </ThemedText>
+          </View>
         </View>
       </View>
 
-      {/* All Innings Summary */}
-      {matchData.score && matchData.score.length > 0 && (
+      <View className="flex-row justify-between">
+        {/* Team 1 Squad/Info Placeholders */}
         <View
-          className={`rounded-xl overflow-hidden mb-4 ${
-            isDark ? "bg-gray-800" : "bg-white"
-          } shadow-sm shadow-black/5 elevation-2`}
+          className={`rounded-xl p-4 flex-1 mr-2 ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm`}
         >
-          <View
-            className={`px-4 py-3 ${isDark ? "bg-gray-700" : "bg-gray-50"}`}
-          >
-            <ThemedText className="text-sm font-bold opacity-70">
-              INNINGS SUMMARY
+          <View className="items-center mb-3">
+            <View className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-gray-100 items-center justify-center">
+              {getCountryFlag(team1Name) ? (
+                <Image
+                  source={{ uri: getCountryFlag(team1Name)! }}
+                  className="w-full h-full"
+                />
+              ) : (
+                <ThemedText className="text-xl">
+                  {team1Name.charAt(0)}
+                </ThemedText>
+              )}
+            </View>
+            <ThemedText className="font-bold text-center">
+              {team1Name}
             </ThemedText>
           </View>
-          <View className="p-4">
-            {matchData.score.map((s, i) => (
-              <View
-                key={i}
-                className={`flex-row justify-between items-center py-2.5 ${
-                  i < matchData.score!.length - 1
-                    ? `border-b ${isDark ? "border-gray-700" : "border-gray-100"}`
-                    : ""
-                }`}
-              >
-                <ThemedText
-                  className="text-sm font-medium flex-1"
-                  numberOfLines={1}
-                >
-                  {s.inning}
-                </ThemedText>
-                <ThemedText className="text-base font-bold">
-                  {s.r}/{s.w} ({s.o} ov)
-                </ThemedText>
-              </View>
-            ))}
-          </View>
+          {/* Add squad list here if available in API */}
         </View>
-      )}
 
-      {/* Team Info */}
-      {matchData.teamInfo && matchData.teamInfo.length > 0 && (
         <View
-          className={`rounded-xl overflow-hidden mb-4 ${
-            isDark ? "bg-gray-800" : "bg-white"
-          } shadow-sm shadow-black/5 elevation-2`}
+          className={`rounded-xl p-4 flex-1 ml-2 ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm`}
         >
-          <View
-            className={`px-4 py-3 ${isDark ? "bg-gray-700" : "bg-gray-50"}`}
-          >
-            <ThemedText className="text-sm font-bold opacity-70">
-              TEAMS
+          <View className="items-center mb-3">
+            <View className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-gray-100 items-center justify-center">
+              {getCountryFlag(team2Name) ? (
+                <Image
+                  source={{ uri: getCountryFlag(team2Name)! }}
+                  className="w-full h-full"
+                />
+              ) : (
+                <ThemedText className="text-xl">
+                  {team2Name.charAt(0)}
+                </ThemedText>
+              )}
+            </View>
+            <ThemedText className="font-bold text-center">
+              {team2Name}
             </ThemedText>
           </View>
-          <View className="p-4 flex-row justify-around">
-            {matchData.teamInfo.map((team, i) => (
-              <View key={i} className="items-center">
-                {team.img ? (
-                  <Image
-                    source={{ uri: team.img }}
-                    className="w-16 h-16 rounded-full mb-2"
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View
-                    className={`w-16 h-16 rounded-full items-center justify-center mb-2 ${
-                      isDark ? "bg-gray-700" : "bg-gray-100"
-                    }`}
-                  >
-                    <ThemedText className="text-2xl font-bold">
-                      {team.name.charAt(0)}
-                    </ThemedText>
-                  </View>
-                )}
-                <ThemedText className="text-sm font-semibold">
-                  {team.name}
-                </ThemedText>
-                <ThemedText className="text-xs opacity-50">
-                  {team.shortname}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
         </View>
-      )}
+      </View>
     </View>
   );
 
   const renderScorecardTab = () => {
-    if (scorecard.length === 0) {
+    if (!matchData?.score || matchData.score.length === 0) {
       return (
-        <View className="p-4 items-center py-20">
-          <ThemedText className="text-5xl mb-4">📊</ThemedText>
-          <ThemedText className="text-lg font-semibold mb-2">
-            Scorecard Not Available
-          </ThemedText>
-          <ThemedText className="text-sm opacity-60 text-center">
-            Detailed scorecard data is not yet available for this match.
+        <View className="items-center py-20 px-6">
+          <Ionicons
+            name="stats-chart-outline"
+            size={48}
+            color={isDark ? "gray" : "#ccc"}
+          />
+          <ThemedText className="mt-4 opacity-60 text-center">
+            Detailed scorecard not available yet.
           </ThemedText>
         </View>
       );
     }
 
     return (
-      <View className="p-4">
-        {/* Innings Tabs */}
-        {scorecard.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mb-4"
+      <View className="px-4 py-6">
+        {matchData.score.map((inning, index) => (
+          <View
+            key={index}
+            className={`rounded-2xl p-5 mb-5 ${
+              isDark ? "bg-gray-800" : "bg-white"
+            } shadow-sm border border-gray-100 dark:border-gray-800`}
           >
-            <View className="flex-row gap-2">
-              {scorecard.map((inn, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setActiveInning(i)}
-                  className={`px-4 py-2 rounded-full ${
-                    activeInning === i
-                      ? "bg-green-600"
-                      : isDark
-                        ? "bg-gray-700"
-                        : "bg-gray-200"
-                  }`}
-                >
-                  <ThemedText
-                    className={`text-xs font-semibold ${
-                      activeInning === i ? "text-white" : ""
-                    }`}
-                    numberOfLines={1}
-                  >
-                    {inn.inning || `Innings ${i + 1}`}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+            <View className="flex-row justify-between items-center mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+              <ThemedText className="font-bold text-lg">
+                {inning.inning}
+              </ThemedText>
+              <ThemedText className="font-bold text-xl text-green-600">
+                {inning.r}/{inning.w}{" "}
+                <ThemedText className="text-sm opacity-60 font-medium">
+                  ({inning.o} ov)
+                </ThemedText>
+              </ThemedText>
             </View>
-          </ScrollView>
-        )}
 
-        {/* Active Innings Scorecard */}
-        {scorecard[activeInning] &&
-          renderInningsScorecard(scorecard[activeInning])}
+            {/* This API returns a somewhat structured string or limited details often. 
+                Ideally we'd iterate over batsmen/bowlers if provided. 
+                The current type def implies we might just have summary scores.
+                If detailed stats are needed, we'd need to check if 'inning' object has arrays. 
+                Assuming simple score for now based on 'MatchScore' interface.
+            */}
+            <View>
+              <ThemedText className="opacity-60 text-center italic">
+                Detailed batting and bowling stats coming soon...
+              </ThemedText>
+            </View>
+          </View>
+        ))}
       </View>
     );
   };
 
-  // ===================== Main Render =====================
-
   return (
     <ThemedView className="flex-1">
-      {/* Header */}
-      <View
-        style={{ paddingTop: insets.top }}
-        className={`px-4 pb-0 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-      >
-        {/* Back Button & Title */}
-        <View className="flex-row items-center justify-between pt-3 pb-2">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="flex-row items-center"
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-            <ThemedText className="text-white text-base font-semibold ml-2">
-              Back
-            </ThemedText>
-          </TouchableOpacity>
-          <View className="flex-row items-center">
-            {live && (
-              <View className="bg-red-500 px-2 py-1 rounded mr-2">
-                <ThemedText className="text-xs font-bold text-white">
-                  ● LIVE
-                </ThemedText>
-              </View>
-            )}
-            <View
-              style={{
-                backgroundColor: getMatchTypeBadgeColor(matchData.matchType),
-              }}
-              className="px-2 py-1 rounded"
+      {/* Header with Gradient */}
+      <View style={{ paddingTop: 0 }}>
+        <LinearGradient
+          colors={
+            isDark
+              ? isLive
+                ? CricketColors.gradients.liveCard
+                : CricketColors.gradients.headerDark
+              : isLive
+                ? CricketColors.gradients.liveCard
+                : CricketColors.gradients.header
+          }
+          style={{ paddingTop: insets.top }}
+          className="rounded-b-[40px] px-5 pb-8 shadow-lg z-10"
+        >
+          {/* Header Nav */}
+          <View className="flex-row items-center justify-between mb-6 pt-2">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="bg-white/20 p-2 rounded-full"
             >
-              <ThemedText className="text-xs font-bold text-white uppercase">
-                {matchData.matchType}
-              </ThemedText>
-            </View>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <ThemedText className="text-white font-bold text-lg opacity-90">
+              Match Details
+            </ThemedText>
+            <TouchableOpacity className="bg-white/20 p-2 rounded-full">
+              <Ionicons name="share-social-outline" size={20} color="white" />
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Score Summary */}
-        <View className="pb-4 pt-2">
-          <View className="flex-row items-center justify-between mb-3">
-            {/* Team 1 */}
-            <View className="flex-row items-center flex-1">
-              {getTeamImg(team1) ? (
-                <Image
-                  source={{ uri: getTeamImg(team1)! }}
-                  className="w-8 h-8 rounded-full mr-2"
-                  resizeMode="contain"
-                />
-              ) : (
-                <View className="w-8 h-8 rounded-full items-center justify-center mr-2 bg-white/20">
-                  <ThemedText className="text-white font-bold">
-                    {team1.charAt(0)}
+          {/* Match Summary Card within Header */}
+          {loading ? (
+            <View className="h-40 items-center justify-center">
+              <ActivityIndicator color="white" />
+            </View>
+          ) : (
+            <View className="items-center">
+              <ThemedText className="text-white/80 font-medium text-xs uppercase tracking-widest mb-4">
+                {matchData?.matchType} • {matchData?.venue.split(",")[0]}
+              </ThemedText>
+
+              <View className="flex-row items-center w-full justify-between px-2">
+                {/* Team 1 */}
+                <View className="items-center flex-1">
+                  <View className="w-16 h-16 rounded-full bg-white/20 mb-2 overflow-hidden border-2 border-white/30 items-center justify-center">
+                    {getCountryFlag(team1Name) ? (
+                      <Image
+                        source={{ uri: getCountryFlag(team1Name)! }}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <ThemedText className="text-2xl text-white font-bold">
+                        {team1Name.charAt(0)}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <ThemedText
+                    className="text-white font-bold text-base text-center"
+                    numberOfLines={1}
+                  >
+                    {team1Name}
                   </ThemedText>
                 </View>
-              )}
-              <ThemedText
-                className="text-white font-bold text-sm flex-1"
-                numberOfLines={1}
-              >
-                {getTeamShort(team1)}
-              </ThemedText>
-            </View>
-            <ThemedText className="text-white font-bold text-lg mx-2">
-              {score1 ? formatScoreStr(score1) : "—"}
-            </ThemedText>
-          </View>
 
-          <View className="flex-row items-center justify-between">
-            {/* Team 2 */}
-            <View className="flex-row items-center flex-1">
-              {getTeamImg(team2) ? (
-                <Image
-                  source={{ uri: getTeamImg(team2)! }}
-                  className="w-8 h-8 rounded-full mr-2"
-                  resizeMode="contain"
-                />
-              ) : (
-                <View className="w-8 h-8 rounded-full items-center justify-center mr-2 bg-white/20">
-                  <ThemedText className="text-white font-bold">
-                    {team2.charAt(0)}
+                {/* VS or Live Status */}
+                <View className="items-center px-4">
+                  {isLive ? (
+                    <View className="px-3 py-1 bg-red-600 rounded-full mb-2 border border-white/20 shadow-lg">
+                      <ThemedText className="text-white text-xs font-bold animate-pulse">
+                        LIVE
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <View className="w-10 h-10 rounded-full bg-white/10 items-center justify-center mb-2">
+                      <ThemedText className="text-white font-bold text-xs opacity-80">
+                        VS
+                      </ThemedText>
+                    </View>
+                  )}
+                  {matchData?.status && (
+                    <ThemedText
+                      className="text-white/70 text-[10px] text-center max-w-[100px]"
+                      numberOfLines={2}
+                    >
+                      {matchData.status}
+                    </ThemedText>
+                  )}
+                </View>
+
+                {/* Team 2 */}
+                <View className="items-center flex-1">
+                  <View className="w-16 h-16 rounded-full bg-white/20 mb-2 overflow-hidden border-2 border-white/30 items-center justify-center">
+                    {getCountryFlag(team2Name) ? (
+                      <Image
+                        source={{ uri: getCountryFlag(team2Name)! }}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <ThemedText className="text-2xl text-white font-bold">
+                        {team2Name.charAt(0)}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <ThemedText
+                    className="text-white font-bold text-base text-center"
+                    numberOfLines={1}
+                  >
+                    {team2Name}
                   </ThemedText>
                 </View>
-              )}
-              <ThemedText
-                className="text-white font-bold text-sm flex-1"
-                numberOfLines={1}
-              >
-                {getTeamShort(team2)}
-              </ThemedText>
+              </View>
+
+              {/* Scores */}
+              <View className="flex-row justify-between w-full mt-6 px-4">
+                <View className="items-center flex-1">
+                  {score1 ? (
+                    <View>
+                      <ThemedText className="text-white font-bold text-2xl">
+                        {score1.r}/{score1.w}
+                      </ThemedText>
+                      <ThemedText className="text-white/70 text-xs font-medium text-center">
+                        {score1.o} ov
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <ThemedText className="text-white/40 text-xs">
+                      Yet to bat
+                    </ThemedText>
+                  )}
+                </View>
+                <View className="items-center flex-1">
+                  {score2 ? (
+                    <View>
+                      <ThemedText className="text-white font-bold text-2xl">
+                        {score2.r}/{score2.w}
+                      </ThemedText>
+                      <ThemedText className="text-white/70 text-xs font-medium text-center">
+                        {score2.o} ov
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <ThemedText className="text-white/40 text-xs">
+                      Yet to bat
+                    </ThemedText>
+                  )}
+                </View>
+              </View>
             </View>
-            <ThemedText className="text-white font-bold text-lg mx-2">
-              {score2 ? formatScoreStr(score2) : "—"}
-            </ThemedText>
-          </View>
+          )}
+        </LinearGradient>
+      </View>
 
-          {/* Status */}
-          <View className="mt-2">
-            <ThemedText className="text-white/80 text-xs text-center">
-              {matchData.status}
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Detail Tabs */}
-        <View className="flex-row">
-          {DETAIL_TABS.map((tab, index) => (
+      {/* Tabs */}
+      <View
+        className={`flex-row mx-5 -mt-6 rounded-2xl p-1 shadow-lg ${
+          isDark ? "bg-gray-800" : "bg-white"
+        }`}
+      >
+        {DETAIL_TABS.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
             <TouchableOpacity
               key={tab}
-              onPress={() => setActiveTab(index)}
-              className={`flex-1 items-center pb-3 border-b-2 ${
-                activeTab === index ? "border-white" : "border-transparent"
+              onPress={() => setActiveTab(tab)}
+              className={`flex-1 items-center py-3 rounded-xl ${
+                isActive ? "bg-gray-100 dark:bg-gray-700" : "bg-transparent"
               }`}
             >
               <ThemedText
-                className={`text-sm font-semibold ${
-                  activeTab === index ? "text-white" : "text-white/50"
+                className={`text-sm font-bold ${
+                  isActive ? "text-green-600 dark:text-green-400" : "opacity-60"
                 }`}
               >
                 {tab}
               </ThemedText>
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
       </View>
 
-      {/* Tab Content */}
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {activeTab === 0 && renderInfoTab()}
-        {activeTab === 1 && renderScorecardTab()}
-
-        {/* Bottom Spacer */}
-        <View className="h-24" />
-      </ScrollView>
+      {loading && !matchData ? (
+        <View className="flex-1 items-center justify-center p-10">
+          {/* Already showing loader in header, this is just fail safe for content area */}
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1 mt-2"
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={CricketColors.primary[500]}
+            />
+          }
+        >
+          {activeTab === "Info" ? renderInfoTab() : renderScorecardTab()}
+        </ScrollView>
+      )}
     </ThemedView>
-  );
-}
-
-// Helper component for match info rows
-function InfoRow({
-  label,
-  value,
-  isStatus,
-}: {
-  label: string;
-  value?: string;
-  isStatus?: boolean;
-}) {
-  if (!value) return null;
-  return (
-    <View className="flex-row py-2 border-b border-gray-100/30">
-      <ThemedText className="text-sm opacity-50 w-20">{label}</ThemedText>
-      <ThemedText
-        className={`text-sm font-medium flex-1 ${isStatus ? "text-green-600" : ""}`}
-      >
-        {value}
-      </ThemedText>
-    </View>
   );
 }

@@ -1,26 +1,27 @@
 import {
-    DarkTheme,
-    DefaultTheme,
-    ThemeProvider,
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
 
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-// Custom Cricbuzz-inspired themes
+// Custom Cricbuzz-inspired themes with new Palette
 const CricbuzzLightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: "#00A651",
-    background: "#f5f5f5",
-    card: "#ffffff",
-    text: "#1a1a1a",
-    border: "#e0e0e0",
-    notification: "#EF4444",
+    primary: CricketColors.primary[600],
+    background: CricketColors.light.bg,
+    card: CricketColors.light.card,
+    text: CricketColors.light.textPrimary,
+    border: CricketColors.light.border,
+    notification: CricketColors.status.live,
   },
 };
 
@@ -28,12 +29,12 @@ const CricbuzzDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: "#00A651",
-    background: "#121212",
-    card: "#1e1e1e",
-    text: "#ffffff",
-    border: "#333333",
-    notification: "#EF4444",
+    primary: CricketColors.primary[500],
+    background: CricketColors.dark.bg,
+    card: CricketColors.dark.card,
+    text: CricketColors.dark.textPrimary,
+    border: CricketColors.dark.border,
+    notification: CricketColors.status.live,
   },
 };
 
@@ -54,7 +55,7 @@ export default function RootLayout() {
           name="match/[id]"
           options={{
             headerShown: false,
-            animation: "slide_from_right",
+            animation: "fade_from_bottom",
           }}
         />
         <Stack.Screen

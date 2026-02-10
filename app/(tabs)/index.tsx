@@ -1,29 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { MatchCard } from "@/components/match-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-  fetchCurrentMatches,
-  fetchMatches,
-  fetchPlayers,
-  getCountryFlag,
-  getMatchTypeBadgeColor,
-  initializeCountries,
-  isMatchLive,
-  isMatchUpcoming,
-  Match,
-  Player,
+    fetchCurrentMatches,
+    fetchMatches,
+    fetchPlayers,
+    getCountryFlag,
+    initializeCountries,
+    isMatchLive,
+    isMatchUpcoming,
+    Match,
+    Player,
 } from "@/services/cricapi";
 
 export default function HomeScreen() {
@@ -49,13 +51,13 @@ export default function HomeScreen() {
 
         // Filter live matches
         const live = current.filter((m) => isMatchLive(m.status));
-        setLiveMatches(live.slice(0, 3));
+        setLiveMatches(live.slice(0, 5));
 
         // Filter upcoming matches
         const upcoming = allMatches
           .filter((m) => isMatchUpcoming(m.status))
           .filter((m) => !live.find((l) => l.id === m.id)); // Avoid duplicates
-        setUpcomingMatches(upcoming.slice(0, 3));
+        setUpcomingMatches(upcoming.slice(0, 5));
 
         setTrendingPlayers(players.slice(0, 10));
       } catch (error) {
@@ -70,255 +72,102 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const renderMatchCard = (match: Match, isLive: boolean = true) => {
-    const team1Name = match.teams[0] || "Team 1";
-    const team2Name = match.teams[1] || "Team 2";
-
-    // Attempt to find scores for each team based on inning name
-    // Note: This logic assumes inning name contains team name
-    const score1 =
-      match.score?.find((s) => s.inning.includes(team1Name)) ||
-      match.score?.[0];
-    const score2 =
-      match.score?.find((s) => s.inning.includes(team2Name)) ||
-      match.score?.[1];
-
-    const formatScoreStr = (s?: { r: number; w: number; o: number }) =>
-      s ? `${s.r}/${s.w} (${s.o} ov)` : null;
-
-    return (
-      <Link key={match.id} href={isLive ? "/live" : "/matches"} asChild>
-        <TouchableOpacity
-          className={`mb-3 rounded-2xl overflow-hidden ${
-            isDark ? "bg-gray-800" : "bg-white"
-          } shadow-lg shadow-black/10 elevation-4`}
-        >
-          {/* Match Header */}
-          <View
-            className={`px-4 py-2 flex-row justify-between items-center ${
-              isDark ? "bg-gray-700" : "bg-gray-50"
-            }`}
-          >
-            <View className="flex-row items-center">
-              <View
-                style={{
-                  backgroundColor: getMatchTypeBadgeColor(match.matchType),
-                }}
-                className="px-2 py-0.5 rounded mr-2"
-              >
-                <ThemedText className="text-xs font-bold text-white uppercase">
-                  {match.matchType}
-                </ThemedText>
-              </View>
-              <ThemedText className="text-xs opacity-60 font-bold">
-                {isLive ? "● LIVE" : "UPCOMING"}
-              </ThemedText>
-            </View>
-            <ThemedText className="text-xs opacity-50" numberOfLines={1}>
-              {match.venue?.split(",")[0]}
-            </ThemedText>
-          </View>
-
-          {/* Teams & Scores */}
-          <View className="p-4">
-            {/* Team 1 */}
-            <View className="flex-row justify-between items-center mb-3">
-              <View className="flex-row items-center flex-1">
-                <View className="w-8 h-8 mr-3 items-center justify-center">
-                  {getCountryFlag(team1Name) ? (
-                    <Image
-                      source={{ uri: getCountryFlag(team1Name) || "" }}
-                      className="w-8 h-6 rounded-sm"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                    >
-                      <ThemedText className="font-bold">
-                        {team1Name.charAt(0)}
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-                <ThemedText
-                  className="font-bold text-base flex-1"
-                  numberOfLines={1}
-                >
-                  {team1Name}
-                </ThemedText>
-              </View>
-              {score1 && (
-                <View className="items-end">
-                  <ThemedText className="font-bold text-lg">
-                    {formatScoreStr(score1)}
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-
-            {/* Team 2 */}
-            <View className="flex-row justify-between items-center">
-              <View className="flex-row items-center flex-1">
-                <View className="w-8 h-8 mr-3 items-center justify-center">
-                  {getCountryFlag(team2Name) ? (
-                    <Image
-                      source={{ uri: getCountryFlag(team2Name) || "" }}
-                      className="w-8 h-6 rounded-sm"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-100"}`}
-                    >
-                      <ThemedText className="font-bold">
-                        {team2Name.charAt(0)}
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-                <ThemedText
-                  className="font-bold text-base flex-1"
-                  numberOfLines={1}
-                >
-                  {team2Name}
-                </ThemedText>
-              </View>
-              {score2 && (
-                <View className="items-end">
-                  <ThemedText className="font-bold text-lg">
-                    {formatScoreStr(score2)}
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-
-            {/* Status */}
-            <View className="mt-3 pt-3 border-t border-gray-200/30">
-              <ThemedText
-                className={`text-sm font-medium ${isLive ? "text-green-600" : "text-blue-500"}`}
-              >
-                {match.status}
-              </ThemedText>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Link>
-    );
-  };
-
   return (
     <ThemedView className="flex-1">
-      {/* Header */}
-      <View
-        style={{ paddingTop: insets.top }}
-        className={`px-5 pb-4 ${isDark ? "bg-gray-900" : "bg-green-600"}`}
-      >
-        <View className="flex-row items-center justify-between pt-3">
-          <View className="flex-row items-center">
-            <ThemedText className="text-2xl font-bold text-white">
-              🏏 CricScore
-            </ThemedText>
+      {/* Premium Header */}
+      <View style={{ paddingTop: insets.top }}>
+        <LinearGradient
+          colors={
+            isDark
+              ? CricketColors.gradients.headerDark
+              : CricketColors.gradients.header
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="px-5 pb-6 pt-4 rounded-b-3xl shadow-lg z-10"
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <ThemedText className="text-2xl font-bold text-white tracking-tight">
+                🏏 CricScore
+              </ThemedText>
+            </View>
+            <View className="flex-row gap-4">
+              <TouchableOpacity className="bg-white/20 p-2 rounded-full backdrop-blur-md">
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color="white"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity className="bg-white/20 p-2 rounded-full backdrop-blur-md">
+                <Ionicons name="search-outline" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View className="flex-row gap-4">
-            <TouchableOpacity>
-              <Ionicons name="notifications-outline" size={24} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Ionicons name="search-outline" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
+
+          {/* Greeting / Subheader */}
+          <ThemedText className="text-white/80 text-sm mt-1 font-medium">
+            Welcome to the home of cricket
+          </ThemedText>
+        </LinearGradient>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 -mt-4 bg-transparent"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {loading ? (
-          <View className="items-center py-12">
-            <ActivityIndicator size="large" color="#00A651" />
-            <ThemedText className="mt-4 opacity-60">Loading...</ThemedText>
+          <View className="items-center py-20 mt-10">
+            <ActivityIndicator
+              size="large"
+              color={CricketColors.primary[500]}
+            />
+            <ThemedText className="mt-4 opacity-60 font-medium">
+              Loading the action...
+            </ThemedText>
           </View>
         ) : (
-          <>
-            {/* Live Matches Section */}
-            <View className="px-4 pt-5 pb-3">
-              <View className="flex-row items-center justify-between mb-4">
-                <View className="flex-row items-center">
-                  <View className="w-2 h-2 rounded-full bg-red-500 mr-2" />
-                  <ThemedText className="text-lg font-bold">
-                    Live Matches
-                  </ThemedText>
-                </View>
-                <Link href="/live" asChild>
-                  <TouchableOpacity className="flex-row items-center">
-                    <ThemedText className="text-green-600 text-sm font-semibold mr-1">
-                      View All
-                    </ThemedText>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={14}
-                      color="#00A651"
-                    />
-                  </TouchableOpacity>
-                </Link>
-              </View>
-
-              {liveMatches.length === 0 ? (
-                <View
-                  className={`p-6 rounded-2xl items-center ${
-                    isDark ? "bg-gray-800" : "bg-white"
-                  } shadow-md shadow-black/5 elevation-2`}
-                >
-                  <ThemedText className="text-3xl mb-2">🏏</ThemedText>
-                  <ThemedText className="text-sm opacity-60 text-center">
-                    No live matches right now
-                  </ThemedText>
-                </View>
-              ) : (
-                liveMatches.map((match) => renderMatchCard(match, true))
-              )}
-            </View>
-
+          <View className="pt-8">
             {/* Quick Actions */}
-            <View className="px-4 py-4">
-              <ThemedText className="text-lg font-bold mb-4">
-                Quick Access
-              </ThemedText>
+            <View className="px-4 mb-6">
               <View className="flex-row justify-between">
                 {[
                   {
                     icon: "radio",
                     label: "Live",
-                    color: "#EF4444",
+                    color: CricketColors.status.live,
                     href: "/live",
                   },
                   {
                     icon: "baseball",
                     label: "Matches",
-                    color: "#3B82F6",
+                    color: CricketColors.status.upcoming,
                     href: "/matches",
                   },
                   {
                     icon: "people",
                     label: "Teams",
-                    color: "#10B981",
+                    color: CricketColors.accent.teal,
                     href: "/teams",
                   },
                   {
                     icon: "trophy",
                     label: "Series",
-                    color: "#F59E0B",
+                    color: CricketColors.accent.amber,
                     href: "/series",
                   },
                 ].map((item) => (
                   <Link key={item.label} href={item.href as any} asChild>
                     <TouchableOpacity
-                      className={`flex-1 mx-1 items-center p-4 rounded-2xl ${
+                      className={`flex-1 mx-1.5 items-center p-3 rounded-2xl ${
                         isDark ? "bg-gray-800" : "bg-white"
-                      } shadow-md shadow-black/5 elevation-2`}
+                      } shadow-sm elevation-3`}
                     >
                       <View
-                        className="w-12 h-12 rounded-full items-center justify-center mb-2"
-                        style={{ backgroundColor: `${item.color}20` }}
+                        className="w-12 h-12 rounded-2xl items-center justify-center mb-2 shadow-inner"
+                        style={{ backgroundColor: `${item.color}15` }}
                       >
                         <Ionicons
                           name={item.icon as any}
@@ -326,7 +175,7 @@ export default function HomeScreen() {
                           color={item.color}
                         />
                       </View>
-                      <ThemedText className="text-xs font-semibold">
+                      <ThemedText className="text-xs font-bold opacity-80">
                         {item.label}
                       </ThemedText>
                     </TouchableOpacity>
@@ -335,11 +184,57 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/* Live Matches Section */}
+            <View className="mb-2">
+              <View className="flex-row items-center justify-between px-5 mb-3">
+                <View className="flex-row items-center">
+                  <View className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" />
+                  <ThemedText className="text-lg font-bold tracking-tight">
+                    Live Action
+                  </ThemedText>
+                </View>
+                <Link href="/live" asChild>
+                  <TouchableOpacity className="flex-row items-center bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
+                    <ThemedText className="text-green-600 dark:text-green-400 text-xs font-bold mr-1">
+                      View All
+                    </ThemedText>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={12}
+                      color={isDark ? "#4ade80" : "#059669"}
+                    />
+                  </TouchableOpacity>
+                </Link>
+              </View>
+
+              {liveMatches.length === 0 ? (
+                <View className="mx-4 p-8 rounded-3xl items-center bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <ThemedText className="text-4xl mb-3 opacity-80">
+                    🏏
+                  </ThemedText>
+                  <ThemedText className="text-base font-semibold opacity-70">
+                    No live matches right now
+                  </ThemedText>
+                  <ThemedText className="text-xs opacity-50 text-center mt-1">
+                    Check back later for live action
+                  </ThemedText>
+                </View>
+              ) : (
+                <View>
+                  {liveMatches.map((match) => (
+                    <Link key={match.id} href={`/match/${match.id}`} asChild>
+                      <MatchCard data={match as any} showSeries={false} />
+                    </Link>
+                  ))}
+                </View>
+              )}
+            </View>
+
             {/* Trending Players */}
             {trendingPlayers.length > 0 && (
-              <View className="px-4 py-4">
-                <View className="flex-row items-center justify-between mb-4">
-                  <ThemedText className="text-lg font-bold">
+              <View className="mb-6 mt-2">
+                <View className="px-5 mb-4">
+                  <ThemedText className="text-lg font-bold tracking-tight">
                     Featured Players
                   </ThemedText>
                 </View>
@@ -347,42 +242,40 @@ export default function HomeScreen() {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="-mx-4 px-4"
+                  contentContainerStyle={{ paddingHorizontal: 20 }}
                 >
                   {trendingPlayers.map((player) => (
                     <TouchableOpacity
                       key={player.id}
-                      className={`w-28 mr-3 p-4 rounded-2xl items-center ${
-                        isDark ? "bg-gray-800" : "bg-white"
-                      } shadow-md shadow-black/5 elevation-2`}
+                      className="mr-4 items-center"
                     >
-                      <View className="w-14 h-14 rounded-full bg-green-100 items-center justify-center mb-2 overflow-hidden">
+                      <View className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-800 p-0.5 border-2 border-green-500 overflow-hidden mb-2 shadow-sm">
                         {getCountryFlag(player.country) ? (
                           <Image
                             source={{
                               uri: getCountryFlag(player.country) || "",
                             }}
-                            className="w-full h-full"
+                            className="w-full h-full rounded-full"
                             resizeMode="cover"
                           />
                         ) : (
-                          <ThemedText className="text-2xl">👤</ThemedText>
+                          <View className="w-full h-full bg-gray-300 dark:bg-gray-700 items-center justify-center rounded-full">
+                            <ThemedText className="text-2xl">👤</ThemedText>
+                          </View>
                         )}
                       </View>
                       <ThemedText
-                        className="font-semibold text-xs text-center"
-                        numberOfLines={2}
+                        className="font-semibold text-xs text-center w-20"
+                        numberOfLines={1}
                       >
                         {player.name}
                       </ThemedText>
-                      {player.country && (
-                        <ThemedText
-                          className="text-xs opacity-50 text-center"
-                          numberOfLines={1}
-                        >
-                          {player.country}
-                        </ThemedText>
-                      )}
+                      <ThemedText
+                        className="text-[10px] opacity-50 text-center w-20 uppercase tracking-widest font-bold"
+                        numberOfLines={1}
+                      >
+                        {player.country || "INTL"}
+                      </ThemedText>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -390,34 +283,41 @@ export default function HomeScreen() {
             )}
 
             {/* Upcoming Matches */}
-            {upcomingMatches.length > 0 && (
-              <View className="px-4 py-4">
-                <View className="flex-row items-center justify-between mb-4">
-                  <ThemedText className="text-lg font-bold">
-                    Upcoming Matches
-                  </ThemedText>
-                  <Link href="/matches" asChild>
-                    <TouchableOpacity className="flex-row items-center">
-                      <ThemedText className="text-green-600 text-sm font-semibold mr-1">
-                        View All
-                      </ThemedText>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#00A651"
-                      />
-                    </TouchableOpacity>
-                  </Link>
-                </View>
-
-                {upcomingMatches.map((match) => renderMatchCard(match, false))}
+            <View>
+              <View className="flex-row items-center justify-between px-5 mb-3">
+                <ThemedText className="text-lg font-bold tracking-tight">
+                  Upcoming Fixtures
+                </ThemedText>
+                <Link href="/matches" asChild>
+                  <TouchableOpacity className="flex-row items-center">
+                    <ThemedText className="text-blue-500 text-xs font-bold mr-1">
+                      See Schedule
+                    </ThemedText>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={12}
+                      color="#3B82F6"
+                    />
+                  </TouchableOpacity>
+                </Link>
               </View>
-            )}
-          </>
-        )}
 
-        {/* Bottom Spacer for Tab Bar */}
-        <View className="h-24" />
+              {upcomingMatches.length > 0 ? (
+                upcomingMatches.map((match) => (
+                  <Link key={match.id} href={`/match/${match.id}`} asChild>
+                    <MatchCard data={match as any} showSeries={false} />
+                  </Link>
+                ))
+              ) : (
+                <View className="mx-4 p-6 rounded-2xl items-center bg-gray-50 dark:bg-gray-800/50">
+                  <ThemedText className="opacity-50">
+                    No upcoming matches
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
