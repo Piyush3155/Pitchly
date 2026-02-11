@@ -3,12 +3,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -18,14 +18,14 @@ import { ThemedView } from "@/components/themed-view";
 import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-  fetchMatches,
-  groupMatchesBySeries,
-  initializeCountries,
-  isMatchCompleted,
-  isMatchLive,
-  isMatchUpcoming,
-  Match,
-  MatchGroup,
+    fetchMatches,
+    groupMatchesBySeries,
+    initializeCountries,
+    isMatchCompleted,
+    isMatchLive,
+    isMatchUpcoming,
+    Match,
+    MatchGroup,
 } from "@/services/cricapi";
 
 const TABS = ["Live", "Upcoming", "Recent"];
@@ -108,6 +108,7 @@ export default function MatchesScreen() {
   return (
     <ThemedView className="flex-1">
       {/* Header */}
+      {/* Header */}
       <View style={{ paddingTop: insets.top }}>
         <LinearGradient
           colors={
@@ -117,57 +118,61 @@ export default function MatchesScreen() {
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          className="px-5 pb-4 pt-3 rounded-b-3xl shadow-sm z-10"
+          className="px-5 pb-6 pt-4 rounded-b-3xl shadow-lg z-10"
         >
           <View className="flex-row items-center justify-between mb-4">
-            <ThemedText className="text-xl font-bold text-white tracking-tight">
+            <ThemedText className="text-2xl font-bold text-white tracking-tight">
               Fixture Center
             </ThemedText>
-            <TouchableOpacity className="bg-white/20 p-2 rounded-full">
+            <TouchableOpacity className="bg-white/20 p-2 rounded-full backdrop-blur-md">
               <Ionicons name="filter" size={20} color="white" />
             </TouchableOpacity>
           </View>
 
           {/* Search Bar */}
-          <View className="flex-row items-center bg-white/20 rounded-xl px-3 py-2 mb-4">
-            <Ionicons name="search" size={18} color="rgba(255,255,255,0.7)" />
+          <View className="flex-row items-center bg-black/20 rounded-2xl px-4 py-2.5 mb-2 border border-white/10">
+            <Ionicons name="search" size={18} color="rgba(255,255,255,0.6)" />
             <TextInput
               placeholder="Search matches, teams, series..."
-              placeholderTextColor="rgba(255,255,255,0.7)"
-              className="flex-1 ml-2 text-white font-medium"
+              placeholderTextColor="rgba(255,255,255,0.6)"
+              className="flex-1 ml-3 text-white font-medium text-base"
               value={searchQuery}
               onChangeText={onSearch}
             />
           </View>
-
-          {/* Tabs */}
-          <View className="flex-row bg-black/10 p-1 rounded-xl">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <TouchableOpacity
-                  key={tab}
-                  className={`flex-1 items-center py-2 rounded-lg ${
-                    isActive ? "bg-background shadow-sm" : ""
-                  }`}
-                  onPress={() => onTabChange(tab)}
-                >
-                  <ThemedText
-                    className={`text-xs font-bold ${
-                      isActive
-                        ? isDark
-                          ? "text-gray-900"
-                          : "text-green-700"
-                        : "text-white/70"
-                    }`}
-                  >
-                    {tab}
-                  </ThemedText>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </LinearGradient>
+      </View>
+
+      {/* Tabs - Now outside the header for better breathing room, or floating overlap */}
+      <View className="-mt-5 px-6 mb-2 z-20">
+        <View
+          className={`flex-row p-1.5 rounded-2xl shadow-sm ${isDark ? "bg-gray-800 border border-gray-700" : "bg-white"}`}
+        >
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                className={`flex-1 items-center py-2.5 rounded-xl ${
+                  isActive ? "bg-green-500 shadow-sm" : "bg-transparent"
+                }`}
+                onPress={() => onTabChange(tab)}
+              >
+                <ThemedText
+                  className={`text-xs font-bold uppercase tracking-wide ${
+                    isActive
+                      ? "text-white"
+                      : isDark
+                        ? "text-gray-400"
+                        : "text-gray-500"
+                  }`}
+                >
+                  {tab}
+                </ThemedText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {loading && !refreshing ? (

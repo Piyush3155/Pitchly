@@ -486,10 +486,34 @@ export function groupMatchesBySeries(matches: Match[]): MatchGroup[] {
     groupMap.get(seriesName)!.push(match);
   });
 
-  return Array.from(groupMap.entries()).map(([seriesName, matches]) => ({
-    seriesName,
-    matches,
-  }));
+  const groups = Array.from(groupMap.entries()).map(
+    ([seriesName, groupMatches]) => {
+      // Sort matches within the group by time (descending - latest first)
+      const sortedMatches = groupMatches.sort((a, b) => {
+        const timeA = new Date(a.dateTimeGMT || a.date).getTime() || 0;
+        const timeB = new Date(b.dateTimeGMT || b.date).getTime() || 0;
+        return timeB - timeA;
+      });
+
+      return {
+        seriesName,
+        matches: sortedMatches,
+      };
+    },
+  );
+
+  // Sort groups by the time of the first (latest) match in the group
+  return groups.sort((a, b) => {
+    const timeA =
+      a.matches.length > 0
+        ? new Date(a.matches[0].dateTimeGMT || a.matches[0].date).getTime() || 0
+        : 0;
+    const timeB =
+      b.matches.length > 0
+        ? new Date(b.matches[0].dateTimeGMT || b.matches[0].date).getTime() || 0
+        : 0;
+    return timeB - timeA;
+  });
 }
 
 // Get match type badge color

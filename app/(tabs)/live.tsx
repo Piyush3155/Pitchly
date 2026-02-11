@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,14 +55,13 @@ export default function LiveScreen() {
 
   useEffect(() => {
     loadMatches();
-    // Auto-refresh every 60 seconds (to respect API limits better)
     const interval = setInterval(loadMatches, 60000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <ThemedView className="flex-1">
-      {/* Header */}
+      {/* Premium Header */}
       <View style={{ paddingTop: insets.top }}>
         <LinearGradient
           colors={
@@ -71,13 +71,20 @@ export default function LiveScreen() {
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          className="px-5 pb-4 pt-3 rounded-b-3xl shadow-md z-10"
+          className="px-5 pb-6 pt-4 rounded-b-3xl shadow-lg z-10"
         >
-          <View className="flex-row items-center">
-            <View className="w-2.5 h-2.5 rounded-full bg-red-500 mr-2 animate-pulse border-2 border-white/20" />
-            <ThemedText className="text-xl font-bold text-white tracking-tight">
-              Live Coverage
-            </ThemedText>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <View className="w-3 h-3 rounded-full bg-red-500 mr-3 animate-pulse border-2 border-white/20" />
+              <ThemedText className="text-2xl font-bold text-white tracking-tight">
+                Live Coverage
+              </ThemedText>
+            </View>
+            <View className="bg-red-500/20 px-3 py-1 rounded-full border border-red-500/30">
+              <ThemedText className="text-white text-xs font-bold">
+                {matches.length} ON AIR
+              </ThemedText>
+            </View>
           </View>
         </LinearGradient>
       </View>
@@ -86,51 +93,53 @@ export default function LiveScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={CricketColors.primary[500]} />
           <ThemedText className="mt-4 opacity-60 font-medium">
-            Tuning into live frequencies...
+            Connecting to live feed...
           </ThemedText>
         </View>
       ) : (
         <ScrollView
-          className="flex-1 -mt-2 bg-transparent"
+          className="flex-1 -mt-4 bg-transparent"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
+          contentContainerStyle={{ paddingBottom: 100, paddingTop: 24 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={CricketColors.primary[500]}
+              colors={[CricketColors.primary[500]]} // Android
             />
           }
         >
           <View>
             {matches.length === 0 ? (
-              <View className="items-center py-20 mx-6">
-                <ThemedText className="text-6xl mb-4 opacity-80">🏏</ThemedText>
-                <ThemedText className="text-xl font-bold mb-2">
-                  All Quiet on the Pitch
+              <View className="items-center justify-center py-20 mx-8">
+                <View className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full items-center justify-center mb-6">
+                  <ThemedText className="text-4xl opacity-50">📡</ThemedText>
+                </View>
+                <ThemedText className="text-xl font-bold mb-2 text-center">
+                  No Live Matches
                 </ThemedText>
-                <ThemedText className="text-sm opacity-60 text-center leading-5">
-                  There are no live matches at the moment.{"\n"}Check back later
-                  or explore upcoming fixtures.
+                <ThemedText className="text-sm opacity-50 text-center leading-6">
+                  There is no live cricket action at the moment.{"\n"}Check the
+                  schedule for upcoming games.
                 </ThemedText>
+
+                <Link href="/matches" asChild>
+                  <TouchableOpacity className="mt-8 bg-green-600 px-6 py-3 rounded-full shadow-md shadow-green-600/20">
+                    <ThemedText className="text-white font-bold text-sm">
+                      View Upcoming Fixtures
+                    </ThemedText>
+                  </TouchableOpacity>
+                </Link>
               </View>
             ) : (
               groupMatchesBySeries(matches).map((group: MatchGroup) => (
                 <View key={group.seriesName} className="mb-6">
                   {/* Series Header */}
-                  <View className="flex-row items-center px-5 py-2 mb-2">
-                    <ThemedText className="text-base mr-2">🏆</ThemedText>
-                    <ThemedText
-                      className="text-xs font-bold uppercase tracking-wider opacity-60 flex-1"
-                      numberOfLines={1}
-                    >
+                  <View className="flex-row items-center px-6 py-2 mb-3">
+                    <ThemedText className="text-xs font-bold uppercase tracking-widest opacity-50 flex-1">
                       {group.seriesName}
                     </ThemedText>
-                    <View className="bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                      <ThemedText className="text-[10px] font-bold text-red-500">
-                        {group.matches.length} LIVE
-                      </ThemedText>
-                    </View>
                   </View>
 
                   {/* Matches in this series */}

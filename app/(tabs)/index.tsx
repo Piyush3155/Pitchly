@@ -1,13 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,15 +16,15 @@ import { ThemedView } from "@/components/themed-view";
 import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    fetchCurrentMatches,
-    fetchMatches,
-    fetchPlayers,
-    getCountryFlag,
-    initializeCountries,
-    isMatchLive,
-    isMatchUpcoming,
-    Match,
-    Player,
+  fetchCurrentMatches,
+  fetchMatches,
+  fetchPlayers,
+  getCountryFlag,
+  initializeCountries,
+  isMatchLive,
+  isMatchUpcoming,
+  Match,
+  Player,
 } from "@/services/cricapi";
 
 export default function HomeScreen() {
@@ -38,11 +37,20 @@ export default function HomeScreen() {
   const [trendingPlayers, setTrendingPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Dynamic Greeting
+  const getGreeting = () => {
+    const hours = new Date().getHours();
+    if (hours < 12) return "Good Morning";
+    if (hours < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
         await initializeCountries();
 
+        // Optimized fetching strategy
         const [current, allMatches, players] = await Promise.all([
           fetchCurrentMatches(),
           fetchMatches(),
@@ -57,7 +65,7 @@ export default function HomeScreen() {
         const upcoming = allMatches
           .filter((m) => isMatchUpcoming(m.status))
           .filter((m) => !live.find((l) => l.id === m.id)); // Avoid duplicates
-        setUpcomingMatches(upcoming.slice(0, 5));
+        setUpcomingMatches(upcoming.slice(0, 10)); // Increased limit
 
         setTrendingPlayers(players.slice(0, 10));
       } catch (error) {
@@ -72,173 +80,177 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  const renderHeader = () => (
+    <View style={{ paddingTop: insets.top }} className="pb-4">
+      <View className="px-5 flex-row items-center justify-between py-2">
+        <View>
+          <ThemedText className="text-sm opacity-60 font-medium uppercase tracking-wider">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              day: "numeric",
+              month: "short",
+            })}
+          </ThemedText>
+          <ThemedText className="text-3xl font-bold tracking-tight">
+            {getGreeting()}
+          </ThemedText>
+        </View>
+        <View className="flex-row gap-3">
+          <TouchableOpacity
+            className={`p-2.5 rounded-full ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm`}
+          >
+            <Ionicons
+              name="search"
+              size={20}
+              color={isDark ? "#fff" : "#000"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className={`p-2.5 rounded-full ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm relative`}
+          >
+            <Ionicons
+              name="notifications"
+              size={20}
+              color={isDark ? "#fff" : "#000"}
+            />
+            <View className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-gray-900" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  const QuickNav = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+      className="mb-6"
+    >
+      {[
+        {
+          label: "Live",
+          icon: "radio",
+          color: "#EF4444",
+          bg: "rgba(239, 68, 68, 0.1)",
+          path: "/live",
+        },
+        {
+          label: "Matches",
+          icon: "calendar",
+          color: "#3B82F6",
+          bg: "rgba(59, 130, 246, 0.1)",
+          path: "/matches",
+        },
+        {
+          label: "Teams",
+          icon: "people",
+          color: "#10B981",
+          bg: "rgba(16, 185, 129, 0.1)",
+          path: "/teams",
+        },
+        {
+          label: "Series",
+          icon: "trophy",
+          color: "#F59E0B",
+          bg: "rgba(245, 158, 11, 0.1)",
+          path: "/series",
+        },
+      ].map((item, index) => (
+        <Link key={index} href={item.path as any} asChild>
+          <TouchableOpacity
+            className={`flex-row items-center px-4 py-3 rounded-2xl ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm mr-2`}
+          >
+            <View
+              className="w-8 h-8 rounded-full items-center justify-center mr-2"
+              style={{ backgroundColor: item.bg }}
+            >
+              <Ionicons name={item.icon as any} size={16} color={item.color} />
+            </View>
+            <ThemedText className="font-semibold text-sm">
+              {item.label}
+            </ThemedText>
+          </TouchableOpacity>
+        </Link>
+      ))}
+    </ScrollView>
+  );
+
   return (
     <ThemedView className="flex-1">
-      {/* Premium Header */}
-      <View style={{ paddingTop: insets.top }}>
-        <LinearGradient
-          colors={
-            isDark
-              ? CricketColors.gradients.headerDark
-              : CricketColors.gradients.header
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          className="px-5 pb-6 pt-4 rounded-b-3xl shadow-lg z-10"
-        >
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <ThemedText className="text-2xl font-bold text-white tracking-tight">
-                🏏 CricScore
-              </ThemedText>
-            </View>
-            <View className="flex-row gap-4">
-              <TouchableOpacity className="bg-white/20 p-2 rounded-full backdrop-blur-md">
-                <Ionicons
-                  name="notifications-outline"
-                  size={20}
-                  color="white"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity className="bg-white/20 p-2 rounded-full backdrop-blur-md">
-                <Ionicons name="search-outline" size={20} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
+      <View className="absolute top-0 left-0 right-0 h-64 bg-green-500/10 dark:bg-green-900/10 -z-10 rounded-b-[40px]" />
 
-          {/* Greeting / Subheader */}
-          <ThemedText className="text-white/80 text-sm mt-1 font-medium">
-            Welcome to the home of cricket
-          </ThemedText>
-        </LinearGradient>
-      </View>
+      {renderHeader()}
 
       <ScrollView
-        className="flex-1 -mt-4 bg-transparent"
+        className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <View style={{ height: 0 }} /> // Placeholder for proper RefreshControl if needed
+        }
       >
         {loading ? (
-          <View className="items-center py-20 mt-10">
+          <View className="items-center justify-center h-64">
             <ActivityIndicator
               size="large"
               color={CricketColors.primary[500]}
             />
-            <ThemedText className="mt-4 opacity-60 font-medium">
-              Loading the action...
-            </ThemedText>
           </View>
         ) : (
-          <View className="pt-8">
-            {/* Quick Actions */}
-            <View className="px-4 mb-6">
-              <View className="flex-row justify-between">
-                {[
-                  {
-                    icon: "radio",
-                    label: "Live",
-                    color: CricketColors.status.live,
-                    href: "/live",
-                  },
-                  {
-                    icon: "baseball",
-                    label: "Matches",
-                    color: CricketColors.status.upcoming,
-                    href: "/matches",
-                  },
-                  {
-                    icon: "people",
-                    label: "Teams",
-                    color: CricketColors.accent.teal,
-                    href: "/teams",
-                  },
-                  {
-                    icon: "trophy",
-                    label: "Series",
-                    color: CricketColors.accent.amber,
-                    href: "/series",
-                  },
-                ].map((item) => (
-                  <Link key={item.label} href={item.href as any} asChild>
-                    <TouchableOpacity
-                      className={`flex-1 mx-1.5 items-center p-3 rounded-2xl ${
-                        isDark ? "bg-gray-800" : "bg-white"
-                      } shadow-sm elevation-3`}
-                    >
-                      <View
-                        className="w-12 h-12 rounded-2xl items-center justify-center mb-2 shadow-inner"
-                        style={{ backgroundColor: `${item.color}15` }}
-                      >
-                        <Ionicons
-                          name={item.icon as any}
-                          size={24}
-                          color={item.color}
-                        />
-                      </View>
-                      <ThemedText className="text-xs font-bold opacity-80">
-                        {item.label}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </Link>
-                ))}
-              </View>
-            </View>
+          <View>
+            <QuickNav />
 
             {/* Live Matches Section */}
-            <View className="mb-2">
-              <View className="flex-row items-center justify-between px-5 mb-3">
-                <View className="flex-row items-center">
-                  <View className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" />
-                  <ThemedText className="text-lg font-bold tracking-tight">
-                    Live Action
+            <View className="mb-6">
+              <View className="flex-row items-center justify-between px-6 mb-4">
+                <View className="flex-row items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-full">
+                  <View className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2" />
+                  <ThemedText className="text-red-600 dark:text-red-400 font-bold text-xs uppercase tracking-wide">
+                    Live Now
                   </ThemedText>
                 </View>
                 <Link href="/live" asChild>
-                  <TouchableOpacity className="flex-row items-center bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
-                    <ThemedText className="text-green-600 dark:text-green-400 text-xs font-bold mr-1">
-                      View All
+                  <TouchableOpacity>
+                    <ThemedText className="text-sm font-medium opacity-50">
+                      See All
                     </ThemedText>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={12}
-                      color={isDark ? "#4ade80" : "#059669"}
-                    />
                   </TouchableOpacity>
                 </Link>
               </View>
 
-              {liveMatches.length === 0 ? (
-                <View className="mx-4 p-8 rounded-3xl items-center bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                  <ThemedText className="text-4xl mb-3 opacity-80">
-                    🏏
-                  </ThemedText>
-                  <ThemedText className="text-base font-semibold opacity-70">
-                    No live matches right now
-                  </ThemedText>
-                  <ThemedText className="text-xs opacity-50 text-center mt-1">
-                    Check back later for live action
-                  </ThemedText>
-                </View>
-              ) : (
-                <View>
+              {liveMatches.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 4 }}
+                  decelerationRate="fast"
+                  snapToInterval={useColorScheme() === "dark" ? 0 : 0} // Adjust based on card width logic if needed, simplify for now
+                >
                   {liveMatches.map((match) => (
-                    <Link key={match.id} href={`/match/${match.id}`} asChild>
-                      <MatchCard data={match as any} showSeries={false} />
-                    </Link>
+                    <View key={match.id} className="w-[340px]">
+                      <Link href={`/match/${match.id}`} asChild>
+                        <MatchCard data={match as any} showSeries={false} />
+                      </Link>
+                    </View>
                   ))}
+                </ScrollView>
+              ) : (
+                <View className="mx-5 p-8 bg-gray-50 dark:bg-gray-800/50 rounded-3xl items-center border border-dashed border-gray-200 dark:border-gray-700">
+                  <ThemedText className="opacity-40 font-medium">
+                    No live matches at the moment
+                  </ThemedText>
                 </View>
               )}
             </View>
 
             {/* Trending Players */}
             {trendingPlayers.length > 0 && (
-              <View className="mb-6 mt-2">
-                <View className="px-5 mb-4">
-                  <ThemedText className="text-lg font-bold tracking-tight">
-                    Featured Players
-                  </ThemedText>
-                </View>
-
+              <View className="mb-8">
+                <ThemedText className="text-lg font-bold px-6 mb-4">
+                  Trending Players
+                </ThemedText>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -247,33 +259,30 @@ export default function HomeScreen() {
                   {trendingPlayers.map((player) => (
                     <TouchableOpacity
                       key={player.id}
-                      className="mr-4 items-center"
+                      className={`mr-4 p-3 rounded-2xl items-center w-28 ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm`}
                     >
-                      <View className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-800 p-0.5 border-2 border-green-500 overflow-hidden mb-2 shadow-sm">
+                      <View className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 mb-3 overflow-hidden border-2 border-white dark:border-gray-600 shadow-sm">
                         {getCountryFlag(player.country) ? (
                           <Image
                             source={{
                               uri: getCountryFlag(player.country) || "",
                             }}
-                            className="w-full h-full rounded-full"
+                            className="w-full h-full"
                             resizeMode="cover"
                           />
                         ) : (
-                          <View className="w-full h-full bg-gray-300 dark:bg-gray-700 items-center justify-center rounded-full">
-                            <ThemedText className="text-2xl">👤</ThemedText>
+                          <View className="w-full h-full items-center justify-center bg-green-100 dark:bg-green-900/30">
+                            <ThemedText className="text-xl">👤</ThemedText>
                           </View>
                         )}
                       </View>
                       <ThemedText
-                        className="font-semibold text-xs text-center w-20"
+                        className="font-bold text-center text-xs mb-1"
                         numberOfLines={1}
                       >
-                        {player.name}
+                        {player.name.split(" ").pop()}
                       </ThemedText>
-                      <ThemedText
-                        className="text-[10px] opacity-50 text-center w-20 uppercase tracking-widest font-bold"
-                        numberOfLines={1}
-                      >
+                      <ThemedText className="text-[10px] opacity-50 text-center font-medium uppercase tracking-wider">
                         {player.country || "INTL"}
                       </ThemedText>
                     </TouchableOpacity>
@@ -283,21 +292,14 @@ export default function HomeScreen() {
             )}
 
             {/* Upcoming Matches */}
-            <View>
-              <View className="flex-row items-center justify-between px-5 mb-3">
-                <ThemedText className="text-lg font-bold tracking-tight">
-                  Upcoming Fixtures
-                </ThemedText>
+            <View className="px-2">
+              <View className="flex-row items-center justify-between px-4 mb-4">
+                <ThemedText className="text-lg font-bold">Upcoming</ThemedText>
                 <Link href="/matches" asChild>
-                  <TouchableOpacity className="flex-row items-center">
-                    <ThemedText className="text-blue-500 text-xs font-bold mr-1">
-                      See Schedule
+                  <TouchableOpacity className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full">
+                    <ThemedText className="text-xs font-bold opacity-60">
+                      View Schedule
                     </ThemedText>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={12}
-                      color="#3B82F6"
-                    />
                   </TouchableOpacity>
                 </Link>
               </View>
@@ -311,7 +313,7 @@ export default function HomeScreen() {
               ) : (
                 <View className="mx-4 p-6 rounded-2xl items-center bg-gray-50 dark:bg-gray-800/50">
                   <ThemedText className="opacity-50">
-                    No upcoming matches
+                    No upcoming matches scheduled
                   </ThemedText>
                 </View>
               )}

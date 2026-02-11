@@ -4,15 +4,9 @@ import React from "react";
 import { Image, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "./themed-text";
-import { ThemedView } from "./themed-view";
 
-import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-    getCountryFlag,
-    getMatchTypeBadgeColor,
-    Match,
-} from "@/services/cricapi";
+import { getCountryFlag, isMatchLive, Match } from "@/services/cricapi";
 
 interface MatchCardProps {
   data: Match;
@@ -28,15 +22,47 @@ export function MatchCard({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const isLive = data.status === "Match Started" || data.status === "Live"; // Simplified check
+  const isLive = isMatchLive(data.status);
   const team1Name = data.teams[0] || "Team 1";
   const team2Name = data.teams[1] || "Team 2";
 
   // Score Logic
-  const score1 =
-    data.score?.find((s) => s.inning.includes(team1Name)) || data.score?.[0];
-  const score2 =
-    data.score?.find((s) => s.inning.includes(team2Name)) || data.score?.[1];
+  const team1Info = data.teamInfo?.find((t) => t.name === team1Name);
+  const team2Info = data.teamInfo?.find((t) => t.name === team2Name);
+
+  const getTeamScore = (teamName: string, shortName?: string) => {
+    return data.score?.find((s) => {
+      const inning = s.inning.toLowerCase();
+      return (
+        inning.includes(teamName.toLowerCase()) ||
+        (shortName && inning.includes(shortName.toLowerCase()))
+      );
+    });
+  };
+
+  const score1 = getTeamScore(team1Name, team1Info?.shortname);
+  const score2 = getTeamScore(team2Name, team2Info?.shortname);
+
+  // Determine batting team
+  // If match is live, the team with the last score entry is usually batting
+  const currentBattingTeam =
+    isLive && data.score && data.score.length > 0
+      ? data.score[data.score.length - 1].inning
+      : null;
+
+  const isTeam1Batting =
+    isLive &&
+    currentBattingTeam &&
+    (currentBattingTeam.includes(team1Name) ||
+      (team1Info?.shortname &&
+        currentBattingTeam.includes(team1Info.shortname)));
+
+  const isTeam2Batting =
+    isLive &&
+    currentBattingTeam &&
+    (currentBattingTeam.includes(team2Name) ||
+      (team2Info?.shortname &&
+        currentBattingTeam.includes(team2Info.shortname)));
 
   const formatScoreStr = (s?: { r: number; w: number; o: number }) =>
     s ? `${s.r}/${s.w} (${s.o})` : null;
@@ -44,156 +70,184 @@ export function MatchCard({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.9}
-      className="mb-4 mx-4 rounded-2xl shadow-lg shadow-black/10 elevation-5"
+      activeOpacity={0.7}
+      className={`mb-4 mx-4 rounded-3xl ${
+        isDark ? "bg-gray-900 border border-gray-800" : "bg-white"
+      } shadow-lg shadow-black/5 elevation-4 overflow-hidden`}
     >
-      <ThemedView className="rounded-2xl overflow-hidden">
-        {/* Header Background - Gradient for Live, Solid for others */}
-        {isLive ? (
-          <LinearGradient
-            colors={CricketColors.gradients.liveCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            className="px-4 py-2 flex-row justify-between items-center"
-          >
-            <View className="flex-row items-center">
-              <View className="bg-white/20 px-2 py-0.5 rounded-md mr-2">
-                <ThemedText className="text-xs font-bold text-white uppercase tracking-wider">
-                  LIVE
-                </ThemedText>
-              </View>
-              <ThemedText className="text-xs font-medium text-white/90">
-                {data.matchType.toUpperCase()}
+      {/* Header Badge */}
+      <View className="flex-row items-center justify-between px-4 py-3">
+        <View className="flex-row items-center space-x-2">
+          {isLive ? (
+            <LinearGradient
+              colors={["#EF4444", "#DC2626"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="px-2.5 py-1 rounded-full flex-row items-center"
+            >
+              <View className="w-1.5 h-1.5 rounded-full bg-white animate-pulse mr-1.5" />
+              <ThemedText className="text-[10px] font-bold text-white tracking-widest uppercase">
+                LIVE
               </ThemedText>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 rounded-full bg-white animate-pulse mr-1" />
-              <ThemedText className="text-xs text-white font-bold ml-1">
-                ●
-              </ThemedText>
-            </View>
-          </LinearGradient>
-        ) : (
-          <View
-            className={`px-4 py-2.5 flex-row justify-between items-center ${
-              isDark ? "bg-gray-800" : "bg-gray-100"
-            }`}
-          >
-            <View className="flex-row items-center">
-              <View
-                style={{
-                  backgroundColor: getMatchTypeBadgeColor(data.matchType),
-                }}
-                className="px-2 py-0.5 rounded-md mr-2"
+            </LinearGradient>
+          ) : (
+            <View
+              className={`px-2.5 py-1 rounded-full ${
+                isDark ? "bg-gray-800" : "bg-gray-100"
+              }`}
+            >
+              <ThemedText
+                className={`text-[10px] font-bold tracking-widest uppercase ${
+                  isDark ? "text-gray-400" : "text-gray-500"
+                }`}
               >
-                <ThemedText className="text-xs font-bold text-white uppercase">
-                  {data.matchType}
-                </ThemedText>
-              </View>
-              <ThemedText className="text-xs font-medium opacity-60">
                 {data.status}
               </ThemedText>
             </View>
-          </View>
-        )}
-
-        {/* Card Body */}
-        <View className={`p-4 ${isDark ? "bg-gray-900" : "bg-white"}`}>
-          {/* Series Name */}
-          {showSeries && (data.series_id || (data as any).seriesName) && (
-            <ThemedText
-              className="text-xs opacity-50 mb-3 font-medium"
-              numberOfLines={1}
-            >
-              {(data as any).seriesName || "Series Match"}
-            </ThemedText>
           )}
+          <ThemedText className="text-xs font-medium opacity-50 ml-2">
+            {data.matchType.toUpperCase()}
+          </ThemedText>
+        </View>
 
-          {/* Teams Row */}
-          <View className="flex-row justify-between items-center mb-4">
-            {/* Team 1 */}
-            <View className="flex-1 flex-row items-center">
-              <View className="w-10 h-10 mr-3 shadow-sm bg-white/5 rounded-full items-center justify-center overflow-hidden">
-                {getCountryFlag(team1Name) ? (
-                  <Image
-                    source={{ uri: getCountryFlag(team1Name)! }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <ThemedText className="text-lg font-bold">
-                    {team1Name.charAt(0)}
-                  </ThemedText>
-                )}
-              </View>
-              <View>
-                <ThemedText className="font-bold text-base" numberOfLines={1}>
-                  {team1Name}
+        {showSeries && (data.series_id || (data as any).seriesName) && (
+          <ThemedText
+            className="text-[10px] uppercase font-bold text-blue-500 opacity-80"
+            numberOfLines={1}
+          >
+            {(data as any).seriesName?.split(" ").slice(0, 2).join(" ")}
+          </ThemedText>
+        )}
+      </View>
+
+      {/* Teams & Scores */}
+      <View className="px-5 pb-5">
+        {/* Team 1 */}
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center flex-1">
+            <View className="w-12 h-12 shadow-sm bg-gray-100 dark:bg-gray-800 rounded-2xl items-center justify-center overflow-hidden mr-3 border border-gray-100 dark:border-gray-700">
+              {getCountryFlag(team1Name) ? (
+                <Image
+                  source={{ uri: getCountryFlag(team1Name)! }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <ThemedText className="text-lg font-bold">
+                  {team1Info?.shortname?.charAt(0) || team1Name.charAt(0)}
                 </ThemedText>
-                {score1 && (
-                  <ThemedText className="text-lg font-bold text-green-600 dark:text-green-400">
-                    {formatScoreStr(score1)}
-                  </ThemedText>
+              )}
+            </View>
+            <View>
+              <View className="flex-row items-center">
+                <ThemedText className="font-bold text-lg leading-tight">
+                  {team1Info?.shortname || team1Name}
+                </ThemedText>
+                {isTeam1Batting && (
+                  <View className="ml-2 w-2 h-2 rounded-full bg-green-500" />
                 )}
               </View>
-            </View>
-
-            <View className="px-2">
-              <ThemedText className="text-xs opacity-40 font-bold">
-                VS
+              <ThemedText className="text-xs opacity-50 font-medium">
+                {team1Name}
               </ThemedText>
             </View>
-
-            {/* Team 2 */}
-            <View className="flex-1 flex-row items-center justify-end">
-              <View className="items-end mr-3">
-                <ThemedText className="font-bold text-base" numberOfLines={1}>
-                  {team2Name}
-                </ThemedText>
-                {score2 && (
-                  <ThemedText className="text-lg font-bold text-green-600 dark:text-green-400">
-                    {formatScoreStr(score2)}
-                  </ThemedText>
-                )}
-              </View>
-              <View className="w-10 h-10 shadow-sm bg-white/5 rounded-full items-center justify-center overflow-hidden">
-                {getCountryFlag(team2Name) ? (
-                  <Image
-                    source={{ uri: getCountryFlag(team2Name)! }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <ThemedText className="text-lg font-bold">
-                    {team2Name.charAt(0)}
-                  </ThemedText>
-                )}
-              </View>
-            </View>
           </View>
-
-          {/* Footer Info */}
-          <View className="flex-row items-center pt-3 border-t border-gray-100 dark:border-gray-800">
-            <Ionicons
-              name="location-outline"
-              size={12}
-              color={isDark ? "#9CA3AF" : "#6B7280"}
-              style={{ marginRight: 4 }}
-            />
-            <ThemedText className="text-xs opacity-60 flex-1" numberOfLines={1}>
-              {data.venue.split(",")[0]}
-            </ThemedText>
-            {data.date && (
-              <ThemedText className="text-xs opacity-50">
-                {new Date(data.date).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
+          <View>
+            {score1 ? (
+              <View className="items-end">
+                <ThemedText className="text-xl font-bold font-mono tracking-tight">
+                  {score1.r}/{score1.w}
+                </ThemedText>
+                <ThemedText className="text-xs opacity-60 font-medium">
+                  {score1.o} Overs
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText className="text-xs opacity-40 font-medium text-right">
+                Yet to Bat
               </ThemedText>
             )}
           </View>
         </View>
-      </ThemedView>
+
+        {/* Divider */}
+        <View
+          className={`h-[1px] w-full my-1 ${
+            isDark ? "bg-gray-800" : "bg-gray-100"
+          }`}
+        />
+
+        {/* Team 2 */}
+        <View className="flex-row items-center justify-between mt-3">
+          <View className="flex-row items-center flex-1">
+            <View className="w-12 h-12 shadow-sm bg-gray-100 dark:bg-gray-800 rounded-2xl items-center justify-center overflow-hidden mr-3 border border-gray-100 dark:border-gray-700">
+              {getCountryFlag(team2Name) ? (
+                <Image
+                  source={{ uri: getCountryFlag(team2Name)! }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <ThemedText className="text-lg font-bold">
+                  {team2Info?.shortname?.charAt(0) || team2Name.charAt(0)}
+                </ThemedText>
+              )}
+            </View>
+            <View>
+              <View className="flex-row items-center">
+                <ThemedText className="font-bold text-lg leading-tight">
+                  {team2Info?.shortname || team2Name}
+                </ThemedText>
+                {isTeam2Batting && (
+                  <View className="ml-2 w-2 h-2 rounded-full bg-green-500" />
+                )}
+              </View>
+              <ThemedText className="text-xs opacity-50 font-medium">
+                {team2Name}
+              </ThemedText>
+            </View>
+          </View>
+          <View>
+            {score2 ? (
+              <View className="items-end">
+                <ThemedText className="text-xl font-bold font-mono tracking-tight">
+                  {score2.r}/{score2.w}
+                </ThemedText>
+                <ThemedText className="text-xs opacity-60 font-medium">
+                  {score2.o} Overs
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText className="text-xs opacity-40 font-medium text-right">
+                Yet to Bat
+              </ThemedText>
+            )}
+          </View>
+        </View>
+
+        {/* Footer info: Venue & Date */}
+        <View className="flex-row items-center mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700/50">
+          <Ionicons
+            name="location-sharp"
+            size={12}
+            color={isDark ? "#6B7280" : "#9CA3AF"}
+          />
+          <ThemedText
+            className="text-[10px] opacity-60 ml-1 flex-1 uppercase tracking-wide font-semibold"
+            numberOfLines={1}
+          >
+            {data.venue}
+          </ThemedText>
+          {data.date && (
+            <ThemedText className="text-[10px] opacity-50 font-medium">
+              {new Date(data.date).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </ThemedText>
+          )}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
