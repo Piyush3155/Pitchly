@@ -1,15 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useState } from "react";
-import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    View,
-} from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ErrorState } from "@/components/error-state";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { fetchSeries, Series } from "@/services/cricapi";
@@ -22,9 +21,23 @@ export default function SeriesScreen() {
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadSeries = async () => {
+  const getSeriesStatus = (startDate: string, endDate: string): string => {
+    if (!startDate || !endDate) return "Unknown";
+
+    const now = new Date().getTime();
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+
+    if (now < start) return "Upcoming";
+    if (now > end) return "Completed";
+    return "Ongoing";
+  };
+
+  const loadSeries = useCallback(async () => {
     try {
+      setError(null);
       const data = await fetchSeries();
       // Sort: Ongoing first, then Upcoming, then Completed
       // Within each, sort by date
@@ -49,34 +62,23 @@ export default function SeriesScreen() {
       });
 
       setSeriesList(sorted);
-    } catch (error) {
-      console.error("Error loading series:", error);
+    } catch (err) {
+      console.error("Error loading series:", err);
+      setError("Failed to load series. Please check your connection.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadSeries();
-    setRefreshing(false);
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadSeries();
+  }, [loadSeries]);
 
   useEffect(() => {
     loadSeries();
-  }, []);
-
-  const getSeriesStatus = (startDate: string, endDate: string): string => {
-    if (!startDate || !endDate) return "Unknown";
-
-    const now = new Date().getTime();
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
-
-    if (now < start) return "Upcoming";
-    if (now > end) return "Completed";
-    return "Ongoing";
-  };
+  }, [loadSeries]);
 
   const getFormat = (s: Series): string => {
     const formats = [];
@@ -89,7 +91,15 @@ export default function SeriesScreen() {
     return "Mixed";
   };
 
-  const renderSeriesCard = (item: Series) => {
+  const renderSkeleton = () => (
+    <View className="px-4 pt-4 gap-4">
+      {[1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} width="100%" height={100} borderRadius={12} />
+      ))}
+    </View>
+  );
+
+  const renderSeriesCard = (item: Series, index: number) => {
     const status = getSeriesStatus(item.startDate, item.endDate);
 
     const statusColor =
@@ -100,8 +110,9 @@ export default function SeriesScreen() {
           : CricketColors.status.completed;
 
     return (
-      <View
+      <Animated.View
         key={item.id}
+        entering={FadeInDown.delay(index * 50).duration(500)}
         className={`mb-4 mx-4 rounded-xl p-4 ${
           isDark ? "bg-gray-800" : "bg-white"
         } shadow-md shadow-black/5 elevation-3 border-l-4`}
@@ -161,7 +172,7 @@ export default function SeriesScreen() {
             )}
           </View>
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -182,35 +193,61 @@ export default function SeriesScreen() {
           <ThemedText className="text-xl font-bold text-white tracking-tight">
             Series & Tournaments
           </ThemedText>
-          <ThemedText className="text-white/60 text-xs mt-1">
-            Follow the latest cricket series around the globe
-          </ThemedText>
+          <View className="flex-row items-center mt-1 opacity-80">
+            <Ionicons
+              name="filter-circle"
+              size={14}
+              color="white"
+              style={{ marginRight: 4 }}
+            />
+            <ThemedText className="text-white text-xs">
+              Ordered by Status and Date
+            </ThemedText>
+          </View>
         </LinearGradient>
       </View>
 
-      {loading && !refreshing ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={CricketColors.primary[500]} />
+      {error && !loading && !refreshing && seriesList.length === 0 ? (
+        <View className="flex-1 justify-center px-6">
+          <ErrorState message={error} onRetry={loadSeries} />
         </View>
+      ) : loading && !refreshing ? (
+        renderSkeleton()
       ) : (
         <ScrollView
           className="flex-1 -mt-2 bg-transparent"
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
+          contentContainerStyle={{
+            paddingBottom: 100,
+            paddingTop: 20,
+            flexGrow: 1, // Ensure container fills screen for centering
+          }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={CricketColors.primary[500]}
+              colors={[CricketColors.primary[500]]}
             />
           }
         >
           {seriesList.length === 0 ? (
-            <View className="items-center mt-20 opacity-50">
-              <ThemedText>No series found</ThemedText>
-            </View>
+            <Animated.View
+              entering={FadeInDown.duration(500)}
+              className="flex-1 items-center justify-center opacity-50"
+            >
+              <Ionicons
+                name="trophy-outline"
+                size={48}
+                color={isDark ? "white" : "black"}
+                className="mb-4"
+              />
+              <ThemedText className="font-medium text-center">
+                No series found
+              </ThemedText>
+            </Animated.View>
           ) : (
-            seriesList.map(renderSeriesCard)
+            seriesList.map((item, index) => renderSeriesCard(item, index))
           )}
         </ScrollView>
       )}

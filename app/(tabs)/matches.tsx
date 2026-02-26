@@ -1,31 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    TextInput,
-    TouchableOpacity,
-    View,
+  RefreshControl,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ErrorState } from "@/components/error-state";
 import { MatchCard } from "@/components/match-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CricketColors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    fetchMatches,
-    groupMatchesBySeries,
-    initializeCountries,
-    isMatchCompleted,
-    isMatchLive,
-    isMatchUpcoming,
-    Match,
-    MatchGroup,
+  fetchMatches,
+  groupMatchesBySeries,
+  initializeCountries,
+  isMatchCompleted,
+  isMatchLive,
+  isMatchUpcoming,
+  Match,
 } from "@/services/cricapi";
 
 const TABS = ["Live", "Upcoming", "Recent"];
@@ -37,43 +38,53 @@ export default function MatchesScreen() {
 
   const [activeTab, setActiveTab] = useState("Live");
   const [allMatches, setAllMatches] = useState<Match[]>([]);
-  const [filteredMatches, setFilteredMatches] = useState<MatchGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async () => {
     try {
+      setError(null);
       await initializeCountries();
       const data = await fetchMatches();
       setAllMatches(data);
-      filterMatches(data, activeTab, searchQuery);
-    } catch (error) {
-      console.error("Error loading matches:", error);
+    } catch (err) {
+      console.error("Error loading matches:", err);
+      setError("Failed to load matches. Please check your connection.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  const filterMatches = (matches: Match[], tab: string, query: string) => {
-    let filtered = matches;
+  useEffect(() => {
+    loadMatches();
+    const interval = setInterval(loadMatches, 60000);
+    return () => clearInterval(interval);
+  }, [loadMatches]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadMatches();
+  }, [loadMatches]);
+
+  const filteredMatches = useMemo(() => {
+    let result = allMatches;
 
     // Filter by Tab
-    filtered = filtered.filter((match) => {
-      if (tab === "Live") {
-        return isMatchLive(match.status);
-      } else if (tab === "Upcoming") {
-        return isMatchUpcoming(match.status);
-      } else {
-        // Recent
-        return isMatchCompleted(match.status) || match.resultSet;
-      }
-    });
+    if (activeTab === "Live") {
+      result = result.filter((m) => isMatchLive(m.status));
+    } else if (activeTab === "Upcoming") {
+      result = result.filter((m) => isMatchUpcoming(m.status));
+    } else {
+      result = result.filter((m) => isMatchCompleted(m.status) || m.resultSet);
+    }
 
     // Filter by Query
-    if (query) {
-      const q = query.toLowerCase();
-      filtered = filtered.filter(
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
         (m) =>
           m.name.toLowerCase().includes(q) ||
           m.series_id.toLowerCase().includes(q) ||
@@ -82,32 +93,22 @@ export default function MatchesScreen() {
       );
     }
 
-    setFilteredMatches(groupMatchesBySeries(filtered));
-  };
+    return groupMatchesBySeries(result);
+  }, [allMatches, activeTab, searchQuery]);
 
-  const onTabChange = (tab: string) => {
-    setActiveTab(tab);
-    filterMatches(allMatches, tab, searchQuery);
-  };
-
-  const onSearch = (text: string) => {
-    setSearchQuery(text);
-    filterMatches(allMatches, activeTab, text);
-  };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadMatches();
-    setRefreshing(false);
-  }, [activeTab, searchQuery]);
-
-  useEffect(() => {
-    loadMatches();
-  }, []);
+  const renderSkeleton = () => (
+    <View className="px-5 pt-4 gap-6">
+      {[1, 2, 3].map((i) => (
+        <View key={i} className="gap-4">
+          <Skeleton width={150} height={20} />
+          <Skeleton width="100%" height={160} borderRadius={24} />
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <ThemedView className="flex-1">
-      {/* Header */}
       {/* Header */}
       <View style={{ paddingTop: insets.top }}>
         <LinearGradient
@@ -118,7 +119,7 @@ export default function MatchesScreen() {
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          className="px-5 pb-6 pt-4 rounded-b-3xl shadow-lg z-10"
+          className="px-5 pb-8 pt-4 rounded-b-3xl shadow-lg z-10"
         >
           <View className="flex-row items-center justify-between mb-4">
             <ThemedText className="text-2xl font-bold text-white tracking-tight">
@@ -130,21 +131,31 @@ export default function MatchesScreen() {
           </View>
 
           {/* Search Bar */}
-          <View className="flex-row items-center bg-black/20 rounded-2xl px-4 py-2.5 mb-2 border border-white/10">
+          <View className="flex-row items-center bg-black/20 rounded-2xl px-4 py-3 mb-2 border border-white/10">
             <Ionicons name="search" size={18} color="rgba(255,255,255,0.6)" />
             <TextInput
               placeholder="Search matches, teams, series..."
               placeholderTextColor="rgba(255,255,255,0.6)"
-              className="flex-1 ml-3 text-white font-medium text-base"
+              className="flex-1 ml-3 text-white font-medium text-base h-full" // Added h-full to fix alignment
               value={searchQuery}
-              onChangeText={onSearch}
+              onChangeText={setSearchQuery}
+              style={{ paddingVertical: 0 }} // Fix for android text input padding
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color="rgba(255,255,255,0.6)"
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </LinearGradient>
       </View>
 
-      {/* Tabs - Now outside the header for better breathing room, or floating overlap */}
-      <View className="-mt-5 px-6 mb-2 z-20">
+      {/* Tabs */}
+      <View className="-mt-6 px-6 mb-2 z-20">
         <View
           className={`flex-row p-1.5 rounded-2xl shadow-sm ${isDark ? "bg-gray-800 border border-gray-700" : "bg-white"}`}
         >
@@ -156,7 +167,7 @@ export default function MatchesScreen() {
                 className={`flex-1 items-center py-2.5 rounded-xl ${
                   isActive ? "bg-green-500 shadow-sm" : "bg-transparent"
                 }`}
-                onPress={() => onTabChange(tab)}
+                onPress={() => setActiveTab(tab)}
               >
                 <ThemedText
                   className={`text-xs font-bold uppercase tracking-wide ${
@@ -175,37 +186,55 @@ export default function MatchesScreen() {
         </View>
       </View>
 
-      {loading && !refreshing ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={CricketColors.primary[500]} />
+      {error && !loading && !refreshing && allMatches.length === 0 ? (
+        <View className="flex-1 justify-center px-6">
+          <ErrorState message={error} onRetry={loadMatches} />
         </View>
+      ) : loading && !refreshing ? (
+        renderSkeleton()
       ) : (
         <ScrollView
           className="flex-1 -mt-2 bg-transparent"
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}
+          contentContainerStyle={{
+            paddingBottom: 100,
+            paddingTop: 20,
+            flexGrow: 1, // Allow content to grow to fill screen when empty
+          }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={CricketColors.primary[500]}
+              colors={[CricketColors.primary[500]]}
             />
           }
         >
           {filteredMatches.length === 0 ? (
-            <View className="items-center py-20 opacity-50">
+            <Animated.View
+              entering={FadeInDown.duration(500)}
+              className="flex-1 items-center justify-center opacity-50 "
+            >
               <Ionicons
                 name="documents-outline"
                 size={64}
                 color={isDark ? "white" : "black"}
+                className="self-center"
               />
-              <ThemedText className="mt-4 font-medium">
+              <ThemedText className="mt-4 font-medium self-center">
                 No matches found
               </ThemedText>
-            </View>
+              <ThemedText className="text-xs opacity-60 mt-2 self-center">
+                Try adjusting your search or tabs
+              </ThemedText>
+            </Animated.View>
           ) : (
-            filteredMatches.map((group) => (
-              <View key={group.seriesName} className="mb-6">
+            filteredMatches.map((group, index) => (
+              <Animated.View
+                key={group.seriesName}
+                className="mb-6"
+                entering={FadeInDown.delay(index * 100).duration(500)}
+              >
                 {/* Series Header */}
                 <View className="flex-row items-center px-5 py-2 mb-2">
                   <ThemedText className="text-base mr-2">🏆</ThemedText>
@@ -222,7 +251,7 @@ export default function MatchesScreen() {
                     <MatchCard data={match as any} showSeries={false} />
                   </Link>
                 ))}
-              </View>
+              </Animated.View>
             ))
           )}
         </ScrollView>
